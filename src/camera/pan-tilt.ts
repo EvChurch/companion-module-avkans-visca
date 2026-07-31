@@ -1,4 +1,4 @@
-import type { PtzOpticsInstance } from '../instance.js'
+import type { AvkansLv20nInstance } from '../instance.js'
 import { ModuleDefinedCommand } from '../visca/command.js'
 import { ModuleDefinedInquiry } from '../visca/inquiry.js'
 
@@ -57,7 +57,7 @@ export const PanTiltDirection: Record<PanTiltAction, readonly [number, number]> 
 }
 
 export function sendPanTiltCommand(
-	instance: PtzOpticsInstance,
+	instance: AvkansLv20nInstance,
 	direction: readonly [number, number],
 	panSpeed: number,
 	tiltSpeed: number,

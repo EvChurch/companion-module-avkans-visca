@@ -1,8 +1,8 @@
 import type { CompanionActionEvent } from '@companion-module/base'
 import type { ActionDefinitions } from './actionid.js'
-import { FocusFarStandard, FocusLock, FocusMode, FocusNearStandard, FocusStop, FocusUnlock } from '../camera/focus.js'
+import { FocusFarStandard, FocusMode, FocusNearStandard, FocusStop } from '../camera/focus.js'
 import { FocusModeInquiry } from '../camera/focus.js'
-import type { PtzOpticsInstance } from '../instance.js'
+import type { AvkansLv20nInstance } from '../instance.js'
 import { optionConversions } from './option-conversion.js'
 
 export enum FocusActionId {
@@ -10,8 +10,6 @@ export enum FocusActionId {
 	StartFocusNearer = 'focusN',
 	StartFocusFarther = 'focusF',
 	StopFocus = 'focusS',
-	LockFocus = 'focusL',
-	UnlockFocus = 'focusU',
 }
 
 export const FocusModeId = 'bol'
@@ -27,7 +25,7 @@ const [getFocusMode, focusModeToOption] = optionConversions<FocusMode, typeof Fo
 	String,
 )
 
-export function focusActions(instance: PtzOpticsInstance): ActionDefinitions<FocusActionId> {
+export function focusActions(instance: AvkansLv20nInstance): ActionDefinitions<FocusActionId> {
 	return {
 		[FocusActionId.SelectFocusMode]: {
 			name: 'Focus Mode',
@@ -74,20 +72,6 @@ export function focusActions(instance: PtzOpticsInstance): ActionDefinitions<Foc
 			options: [],
 			callback: async (_event: CompanionActionEvent) => {
 				instance.sendCommand(FocusStop)
-			},
-		},
-		[FocusActionId.LockFocus]: {
-			name: 'Focus Lock',
-			options: [],
-			callback: async (_event: CompanionActionEvent) => {
-				instance.sendCommand(FocusLock)
-			},
-		},
-		[FocusActionId.UnlockFocus]: {
-			name: 'Focus Unlock',
-			options: [],
-			callback: async (_event: CompanionActionEvent) => {
-				instance.sendCommand(FocusUnlock)
 			},
 		},
 	}

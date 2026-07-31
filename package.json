@@ -1,6 +1,6 @@
 {
-	"name": "ptzoptics-visca",
-	"version": "4.0.0",
+	"name": "avkans-visca",
+	"version": "1.0.0",
 	"type": "module",
 	"main": "dist/main.js",
 	"scripts": {
@@ -20,7 +20,7 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/bitfocus/companion-module-ptzoptics-visca.git"
+		"url": "git+https://github.com/evchurch/companion-module-avkans-visca.git"
 	},
 	"prettier": "@companion-module/tools/.prettierrc.json",
 	"lint-staged": {

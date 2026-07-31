@@ -1,9 +1,8 @@
-import type { ActionDefinitions, PtzOpticsActionId } from './actionid.js'
-import { autoTrackingActions } from './auto-tracking.js'
+import type { ActionDefinitions, AvkansLv20nActionId } from './actionid.js'
 import { customCommandActions } from './custom-command.js'
 import { exposureActions } from './exposure.js'
 import { focusActions } from './focus.js'
-import type { PtzOpticsInstance } from '../instance.js'
+import type { AvkansLv20nInstance } from '../instance.js'
 import { osdActions } from './osd.js'
 import { panTiltActions } from './pan-tilt.js'
 import { powerActions } from './power.js'
@@ -11,9 +10,8 @@ import { presetActions } from './presets.js'
 import { whiteBalanceActions } from './white-balance.js'
 import { zoomActions } from './zoom.js'
 
-export function getActions(instance: PtzOpticsInstance): ActionDefinitions<PtzOpticsActionId> {
+export function getActions(instance: AvkansLv20nInstance): ActionDefinitions<AvkansLv20nActionId> {
 	return {
-		...autoTrackingActions(instance),
 		...customCommandActions(instance),
 		...exposureActions(instance),
 		...focusActions(instance),

@@ -12,7 +12,7 @@ import {
 	type ShutterSetting,
 	ShutterUp,
 } from '../camera/exposure.js'
-import type { PtzOpticsInstance } from '../instance.js'
+import type { AvkansLv20nInstance } from '../instance.js'
 import { optionConversions } from './option-conversion.js'
 import { twoDigitHex } from '../utils/two-digit-hex.js'
 
@@ -47,18 +47,19 @@ const IrisSettingId = 'val'
 const [getIrisSetting] = optionConversions<IrisSetting, typeof IrisSettingId>(
 	IrisSettingId,
 	[
-		['11', 'F1.8'],
-		['10', 'F2.0'],
-		['0F', 'F2.4'],
-		['0E', 'F2.8'],
-		['0D', 'F3.4'],
-		['0C', 'F4.0'],
-		['0B', 'F4.8'],
-		['0A', 'F5.6'],
-		['09', 'F6.8'],
-		['08', 'F8.0'],
-		['07', 'F9.6'],
-		['06', 'F11.0'],
+		['0D', 'F1.6'],
+		['0C', 'F2.0'],
+		['0B', 'F2.4'],
+		['0A', 'F2.8'],
+		['09', 'F3.4'],
+		['08', 'F4.0'],
+		['07', 'F4.8'],
+		['06', 'F5.6'],
+		['05', 'F6.8'],
+		['04', 'F8.0'],
+		['03', 'F9.6'],
+		['02', 'F11.0'],
+		['01', 'F14'],
 		['00', 'CLOSED'],
 	],
 	'CLOSED',
@@ -68,58 +69,54 @@ const [getIrisSetting] = optionConversions<IrisSetting, typeof IrisSettingId>(
 
 const ShutterSettingId = 'val'
 
-const DefaultShutterSetting = 4
+const DefaultShutterSetting = 6
 
-// XXX These mappings aren't all correct on G3, 1/180 seems really to be 1/200
-//     and 1/90-30 seems really to be 1/60-50-30.
 function getShutterSetting(options: CompanionOptionValues): ShutterSetting {
 	let setting = parseInt(String(options[ShutterSettingId]), 16)
-	if (setting < 0x01) {
-		setting = 0x01
-	} else if (0x11 < setting) {
-		setting = 0x11
+	if (setting < 0x06) {
+		setting = 0x06
+	} else if (0x15 < setting) {
+		setting = 0x15
 	}
 
 	switch (setting) {
-		case 0x11:
-			return '1/1000000'
-		case 0x10:
+		case 0x15:
+			return '1/10000'
+		case 0x14:
 			return '1/6000'
-		case 0x0f:
+		case 0x13:
 			return '1/4000'
-		case 0x0e:
+		case 0x12:
 			return '1/3000'
-		case 0x0d:
+		case 0x11:
 			return '1/2000'
-		case 0x0c:
+		case 0x10:
 			return '1/1500'
-		case 0x0b:
+		case 0x0f:
 			return '1/1000'
-		case 0x0a:
+		case 0x0e:
 			return '1/725'
-		case 0x09:
+		case 0x0d:
 			return '1/500'
-		case 0x08:
+		case 0x0c:
 			return '1/350'
-		case 0x07:
+		case 0x0b:
 			return '1/250'
-		case 0x06:
+		case 0x0a:
 			return '1/180'
-		case 0x05:
-			return '1/125'
-		default:
-		case 0x04:
+		case 0x09:
+			return '1/120'
+		case 0x08:
 			return '1/100'
-		case 0x03:
+		case 0x07:
 			return '1/90'
-		case 0x02:
+		default:
+		case 0x06:
 			return '1/60'
-		case 0x01:
-			return '1/30'
 	}
 }
 
-export function exposureActions(instance: PtzOpticsInstance): ActionDefinitions<ExposureActionId> {
+export function exposureActions(instance: AvkansLv20nInstance): ActionDefinitions<ExposureActionId> {
 	return {
 		[ExposureActionId.SelectExposureMode]: {
 			name: 'Exposure Mode',
@@ -172,21 +169,22 @@ export function exposureActions(instance: PtzOpticsInstance): ActionDefinitions<
 					label: 'Iris setting',
 					id: IrisSettingId,
 					choices: [
-						{ id: '11', label: 'F1.8' },
-						{ id: '10', label: 'F2.0' },
-						{ id: '0F', label: 'F2.4' },
-						{ id: '0E', label: 'F2.8' },
-						{ id: '0D', label: 'F3.4' },
-						{ id: '0C', label: 'F4.0' },
-						{ id: '0B', label: 'F4.8' },
-						{ id: '0A', label: 'F5.6' },
-						{ id: '09', label: 'F6.8' },
-						{ id: '08', label: 'F8.0' },
-						{ id: '07', label: 'F9.6' },
-						{ id: '06', label: 'F11.0' },
+						{ id: '0D', label: 'F1.6' },
+						{ id: '0C', label: 'F2.0' },
+						{ id: '0B', label: 'F2.4' },
+						{ id: '0A', label: 'F2.8' },
+						{ id: '09', label: 'F3.4' },
+						{ id: '08', label: 'F4.0' },
+						{ id: '07', label: 'F4.8' },
+						{ id: '06', label: 'F5.6' },
+						{ id: '05', label: 'F6.8' },
+						{ id: '04', label: 'F8.0' },
+						{ id: '03', label: 'F9.6' },
+						{ id: '02', label: 'F11.0' },
+						{ id: '01', label: 'F14' },
 						{ id: '00', label: 'CLOSED' },
 					],
-					default: '0C',
+					default: '08',
 				},
 			],
 			callback: async ({ options }) => {
@@ -216,23 +214,22 @@ export function exposureActions(instance: PtzOpticsInstance): ActionDefinitions<
 					label: 'Shutter setting',
 					id: ShutterSettingId,
 					choices: [
-						{ id: '11', label: '1/1000000' },
-						{ id: '10', label: '1/6000' },
-						{ id: '0F', label: '1/4000' },
-						{ id: '0E', label: '1/3000' },
-						{ id: '0D', label: '1/2000' },
-						{ id: '0C', label: '1/1500' },
-						{ id: '0B', label: '1/1000' },
-						{ id: '0A', label: '1/725' },
-						{ id: '09', label: '1/500' },
-						{ id: '08', label: '1/350' },
-						{ id: '07', label: '1/250' },
-						{ id: '06', label: '1/180' },
-						{ id: '05', label: '1/125' },
-						{ id: '04', label: '1/100' },
-						{ id: '03', label: '1/90' },
-						{ id: '02', label: '1/60' },
-						{ id: '01', label: '1/30' },
+						{ id: '15', label: '1/10000' },
+						{ id: '14', label: '1/6000' },
+						{ id: '13', label: '1/4000' },
+						{ id: '12', label: '1/3000' },
+						{ id: '11', label: '1/2000' },
+						{ id: '10', label: '1/1500' },
+						{ id: '0F', label: '1/1000' },
+						{ id: '0E', label: '1/725' },
+						{ id: '0D', label: '1/500' },
+						{ id: '0C', label: '1/350' },
+						{ id: '0B', label: '1/250' },
+						{ id: '0A', label: '1/180' },
+						{ id: '09', label: '1/120' },
+						{ id: '08', label: '1/100' },
+						{ id: '07', label: '1/90' },
+						{ id: '06', label: '1/60' },
 					],
 					default: twoDigitHex(DefaultShutterSetting),
 				},

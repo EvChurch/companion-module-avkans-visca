@@ -6,7 +6,7 @@ import {
 	getConfigFields,
 	isValidHost,
 	noCameraConfig,
-	type PtzOpticsConfig,
+	type AvkansLv20nConfig,
 	validateConfig,
 } from './config.js'
 import { getPresets } from './presets.js'
@@ -15,9 +15,9 @@ import type { Command, CommandParameters, CommandParamValues, NoCommandParameter
 import type { Answer, AnswerParameters, Inquiry } from './visca/inquiry.js'
 import { VISCAPort } from './visca/port.js'
 
-export class PtzOpticsInstance extends InstanceBase<RawConfig> {
+export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 	/** Configuration dictating the behavior of this instance. */
-	#config: PtzOpticsConfig = noCameraConfig()
+	#config: AvkansLv20nConfig = noCameraConfig()
 
 	/** Whether debug logging is enabled on this instance or not. */
 	get debugLogging(): boolean {
@@ -180,6 +180,6 @@ export class PtzOpticsInstance extends InstanceBase<RawConfig> {
 	 *   A description of the event occasioning the logging.
 	 */
 	#logConfig(config: RawConfig, desc = 'logConfig()'): void {
-		this.log('info', `PTZOptics module configuration on ${desc}: ${repr(config)}`)
+		this.log('info', `AVKANS LV20N module configuration on ${desc}: ${repr(config)}`)
 	}
 }

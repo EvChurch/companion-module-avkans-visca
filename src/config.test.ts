@@ -1,5 +1,9 @@
 import { describe, expect, test } from 'vitest'
-import { type RawConfig, DebugLoggingOptionId, tryUpdateConfigWithDebugLogging } from './config.js'
+import { type RawConfig, DebugLoggingOptionId, noCameraConfig, tryUpdateConfigWithDebugLogging } from './config.js'
+
+test('LV20N uses its documented TCP server port by default', () => {
+	expect(noCameraConfig().port).toBe(1259)
+})
 
 describe('config upgrade to specify debug logging', () => {
 	test('config without debug logging', () => {

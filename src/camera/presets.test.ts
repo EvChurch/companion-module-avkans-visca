@@ -5,24 +5,14 @@ describe('isValidPreset', () => {
 	test('too low', () => {
 		expect(isValidPreset(-1)).toBe(false)
 	})
-	test('low', () => {
+	test('valid LV20N range', () => {
 		expect(isValidPreset(0)).toBe(true)
 		expect(isValidPreset(42)).toBe(true)
-		expect(isValidPreset(89)).toBe(true)
+		expect(isValidPreset(64)).toBe(true)
 	})
-	test('midrange', () => {
-		for (let n = 90; n <= 99; n++) {
-			expect(isValidPreset(n)).toBe(false)
-		}
-	})
-	test('hi', () => {
-		expect(isValidPreset(100)).toBe(true)
-		expect(isValidPreset(101)).toBe(true)
-		expect(isValidPreset(253)).toBe(true)
-		expect(isValidPreset(254)).toBe(true)
-	})
-	test('too hi', () => {
-		expect(isValidPreset(255)).toBe(false)
+	test('above LV20N range', () => {
+		expect(isValidPreset(65)).toBe(false)
+		expect(isValidPreset(254)).toBe(false)
 	})
 	test('NaN', () => {
 		expect(isValidPreset(NaN)).toBe(false)

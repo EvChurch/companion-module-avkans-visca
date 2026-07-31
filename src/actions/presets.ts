@@ -6,9 +6,8 @@ import type {
 	SomeCompanionActionInputField,
 } from '@companion-module/base'
 import type { ActionDefinitions } from './actionid.js'
-import { isValidPreset, PresetDriveSpeed, PresetRecall, PresetSave } from '../camera/presets.js'
-import type { PtzOpticsInstance } from '../instance.js'
-import { speedChoices } from './speeds.js'
+import { isValidPreset, PresetRecall, PresetSave } from '../camera/presets.js'
+import type { AvkansLv20nInstance } from '../instance.js'
 import { repr } from '../utils/repr.js'
 import { twoDigitHex } from '../utils/two-digit-hex.js'
 import { ObsoletePtSpeedSId, PanTiltActionId, PanTiltSpeedSetSpeedId } from './pan-tilt.js'
@@ -19,13 +18,9 @@ export const RecallPresetId = 'recallPreset'
 /** The id of the set-preset action. */
 export const SetPresetId = 'setPreset'
 
-/** The id of the set-a-preset's-drive-speed action. */
-const SetPresetDriveSpeedId = 'speedPreset'
-
 export enum PresetActionId {
 	RecallPreset = RecallPresetId,
 	SetPreset = SetPresetId,
-	SetPresetDriveSpeed = SetPresetDriveSpeedId,
 }
 
 /**
@@ -156,13 +151,6 @@ export function tryUpdateRecallSetPresetActions(action: CompanionMigrationAction
 }
 
 /**
- * The id of the obsolete set-preset-drive-speed action that specified preset
- * fromeither constant two-digit hex number or a variables-supporting text
- * input.
- */
-const ObsoleteSpeedPsetId = 'speedPset'
-
-/**
  * The id of the option checkbox for preset recall/save actions that determines
  * whether the number dropdown determines the desired preset, or the text field
  * (parsed supporting variables) determines the desired preset.
@@ -183,18 +171,6 @@ export const PresetAsNumberId = 'presetAsNumber'
 export const PresetAsTextId = 'presetAsText'
 
 /**
- * The id of the option on the set-preset's-drive-speed action that specifies
- * the preset.
- */
-export const SetPresetDriveSpeedPresetId = 'preset'
-
-/**
- * The id of the option on the set-preset's-drive-speed action that specifies
- * the speed.
- */
-export const SetPresetDriveSpeedSpeedId = 'speed'
-
-/**
  * Given a migration action, attempt to perform these potential upgrades to it:
  *
  *   * If the action is an obsolete preset recall/save action, that had its
@@ -204,14 +180,6 @@ export const SetPresetDriveSpeedSpeedId = 'speed'
  *
  *         { useVariables: boolean, val: twoDigitHex(N), presetVariable: "..." } ⇒
  *         { isText: boolean, presetAsNumber: N, presetAsText: "..." }
- *
- *   * If the action is an obsolete set-preset-recall-speed action, that had its
- *     preset encoded as a two-digit lowercase hex number string and its speed
- *     encoded as a two-digit uppercase hex number string, rewrite it to a
- *     modernized form that encodes both as simple numbers.
- *
- *         { val: twoDigitHex(N), speed: twoDigitHex(S).toUpperCase() } ⇒
- *         { preset: N, speed: S }
  *
  *   * If the action is an obsolete set-global-pan/tilt-speed action, that
  *     encoded the speed as a two-digit uppercase hex number string, rewrite it
@@ -240,17 +208,6 @@ export function tryUpdatePresetAndSpeedEncodingsInActions(action: CompanionMigra
 
 			options[PresetAsTextId] = options[ObsoletePresetVariableOptionId]
 			delete options[ObsoletePresetVariableOptionId]
-			return true
-		}
-
-		case ObsoleteSpeedPsetId: {
-			action.actionId = SetPresetDriveSpeedId
-
-			options[SetPresetDriveSpeedPresetId] = parseInt(String(options[ObsoletePresetValueOptionId]), 16)
-			delete options[ObsoletePresetValueOptionId]
-
-			options[SetPresetDriveSpeedSpeedId] = parseInt(String(options[SetPresetDriveSpeedSpeedId]), 16)
-
 			return true
 		}
 
@@ -308,20 +265,19 @@ export async function getPresetNumber(
 export const PresetRecallDefault = 0
 
 /**
- * The preset default for a preset-set option.  (253 is chosen because it's
- * reasonably likely to be unused, so if the user accidentally forgets to change
- * it he's unlikely to destroy an existing preset.)
+ * The preset default for a preset-set option.  The highest documented LV20N
+ * preset is chosen because it is reasonably likely to be unused.
  */
-export const PresetSetDefault = 253
+export const PresetSetDefault = 64
 
 const PRESET_CHOICES: DropdownChoice[] = []
-for (let i = 0; i < 255; ++i) {
+for (let i = 0; i <= 64; ++i) {
 	if (isValidPreset(i)) {
 		PRESET_CHOICES.push({ id: i, label: String(i) })
 	}
 }
 
-export function presetActions(instance: PtzOpticsInstance): ActionDefinitions<PresetActionId> {
+export function presetActions(instance: AvkansLv20nInstance): ActionDefinitions<PresetActionId> {
 	function presetNumberOptions(defaultPreset: number): SomeCompanionActionInputField[] {
 		return [
 			{
@@ -344,7 +300,7 @@ export function presetActions(instance: PtzOpticsInstance): ActionDefinitions<Pr
 				label: 'Preset number',
 				id: PresetAsTextId,
 				useVariables: true,
-				tooltip: 'Preset number range of 0-89, 100-254',
+				tooltip: 'Preset number range of 0-64',
 				default: `${defaultPreset}`,
 				isVisibleExpression: `!!$(options:${PresetIsTextId})`,
 			},
@@ -376,32 +332,6 @@ export function presetActions(instance: PtzOpticsInstance): ActionDefinitions<Pr
 				}
 
 				instance.sendCommand(PresetRecall, { preset })
-			},
-		},
-		[PresetActionId.SetPresetDriveSpeed]: {
-			name: 'Preset Drive Speed',
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Preset number',
-					id: SetPresetDriveSpeedPresetId,
-					choices: PRESET_CHOICES,
-					minChoicesForSearch: 1,
-					default: 1,
-				},
-				{
-					type: 'dropdown',
-					label: 'Speed setting',
-					id: SetPresetDriveSpeedSpeedId,
-					choices: speedChoices(1, 24),
-					minChoicesForSearch: 1,
-					default: 12,
-				},
-			],
-			callback: async ({ options }) => {
-				const preset = Number(options[SetPresetDriveSpeedPresetId])
-				const speed = Number(options[SetPresetDriveSpeedSpeedId])
-				instance.sendCommand(PresetDriveSpeed, { preset, speed })
 			},
 		},
 	}

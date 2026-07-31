@@ -7,15 +7,12 @@ import {
 	ObsoletePresetVariableOptionId,
 	ObsoleteRecallPsetId,
 	ObsoleteSavePsetId,
-	PresetActionId,
 	PresetAsNumberId,
 	PresetAsTextId,
 	PresetIsTextId,
 	PresetRecallDefault,
 	PresetSetDefault,
 	RecallPresetId,
-	SetPresetDriveSpeedPresetId,
-	SetPresetDriveSpeedSpeedId,
 	SetPresetId,
 	tryUpdatePresetAndSpeedEncodingsInActions,
 	tryUpdateRecallSetPresetActions,
@@ -78,9 +75,9 @@ describe('test invalid preset input', () => {
 	test('User enters a variable that resolves to an invalid preset but number is used', async () => {
 		const context = new MockContext()
 		context.setVariable('internal:foo', '255')
-		const options = optionsWithPresetAsNumberOrText(false, '$(internal:foo)', 250)
+		const options = optionsWithPresetAsNumberOrText(false, '$(internal:foo)', 60)
 		const result = await getPresetNumber(options, context)
-		expect(result).toBe(250)
+		expect(result).toBe(60)
 	})
 })
 
@@ -99,15 +96,15 @@ describe('test recall preset values', () => {
 		expect(result).toBe(11)
 	})
 
-	test('User enters a variable that resolves to dec 254', async () => {
+	test('User enters a variable that resolves to dec 64', async () => {
 		const context = new MockContext()
-		context.setVariable('internal:foo', '254')
+		context.setVariable('internal:foo', '64')
 		const options = optionsWithPresetAsNumberOrText(true, '$(internal:foo)', 16)
 		const result = await getPresetNumber(options, context)
-		expect(result).toBe(254)
+		expect(result).toBe(64)
 	})
 
-	test('User enters a variable that resolves to dec 254 but number is used', async () => {
+	test('User enters an invalid variable but a valid number is used', async () => {
 		const context = new MockContext()
 		context.setVariable('internal:foo', '254')
 		const options = optionsWithPresetAsNumberOrText(false, '$(internal:foo)', 16)
@@ -126,25 +123,25 @@ describe('test set preset values', () => {
 
 	test('User enters "37" as the preset but number is used', async () => {
 		const context = new MockContext()
-		const options = optionsWithPresetAsNumberOrText(false, '37', 82)
+		const options = optionsWithPresetAsNumberOrText(false, '37', 62)
 		const result = await getPresetNumber(options, context)
-		expect(result).toBe(82)
+		expect(result).toBe(62)
 	})
 
-	test('User enters a variable that resolves to dec 254', async () => {
+	test('User enters a variable that resolves to dec 64', async () => {
 		const context = new MockContext()
-		context.setVariable('internal:foo', '254')
+		context.setVariable('internal:foo', '64')
 		const options = optionsWithPresetAsNumberOrText(true, '$(internal:foo)', 77)
 		const result = await getPresetNumber(options, context)
-		expect(result).toBe(254)
+		expect(result).toBe(64)
 	})
 
-	test('User enters a variable that resolves to dec 254 but number is used', async () => {
+	test('User enters a variable that resolves to dec 64 but number is used', async () => {
 		const context = new MockContext()
-		context.setVariable('internal:foo', '254')
-		const options = optionsWithPresetAsNumberOrText(false, '$(internal:foo)', 77)
+		context.setVariable('internal:foo', '64')
+		const options = optionsWithPresetAsNumberOrText(false, '$(internal:foo)', 57)
 		const result = await getPresetNumber(options, context)
-		expect(result).toBe(77)
+		expect(result).toBe(57)
 	})
 })
 
@@ -176,7 +173,7 @@ describe('obsolete preset recall upgrades', () => {
 			id: 'kthx',
 			controlId: 'x',
 			options: {
-				val: twoDigitHex(66), // '42'
+				val: twoDigitHex(60), // '3c'
 			},
 		}
 
@@ -185,8 +182,8 @@ describe('obsolete preset recall upgrades', () => {
 		const { actionId, options } = action
 		expect(actionId).toBe(ObsoleteRecallPsetId)
 		expect(options[ObsoletePresetUseVariablesOptionId]).toBe(false)
-		expect(options[ObsoletePresetValueOptionId]).toBe('42')
-		expect(options[ObsoletePresetVariableOptionId]).toBe(`66`)
+		expect(options[ObsoletePresetValueOptionId]).toBe('3c')
+		expect(options[ObsoletePresetVariableOptionId]).toBe(`60`)
 	})
 
 	test('upgradable with variable preset containing number', async () => {
@@ -235,7 +232,7 @@ describe('obsolete preset save upgrades', () => {
 			id: 'kthx',
 			controlId: 'z',
 			options: {
-				val: twoDigitHex(66), // '42'
+				val: twoDigitHex(60), // '3c'
 			},
 		}
 
@@ -244,8 +241,8 @@ describe('obsolete preset save upgrades', () => {
 		const { actionId, options } = action
 		expect(actionId).toBe(ObsoleteSavePsetId)
 		expect(options[ObsoletePresetUseVariablesOptionId]).toBe(false)
-		expect(options[ObsoletePresetValueOptionId]).toBe('42')
-		expect(options[ObsoletePresetVariableOptionId]).toBe('66')
+		expect(options[ObsoletePresetValueOptionId]).toBe('3c')
+		expect(options[ObsoletePresetVariableOptionId]).toBe('60')
 	})
 
 	test('upgradable with variable preset containing number', async () => {
@@ -358,24 +355,5 @@ describe('obsolete preset/speed encoding upgrades to preset actions', () => {
 		expect(options[PresetAsNumberId]).toBe(23)
 		expect(ObsoletePresetVariableOptionId in options).toBe(false)
 		expect(options[PresetAsTextId]).toBe('$(custom:hello)3')
-	})
-
-	test('upgradable set preset drive speed', async () => {
-		const action: CompanionMigrationAction = {
-			actionId: 'speedPset',
-			id: 'kthx',
-			controlId: 'z',
-			options: {
-				val: '69',
-				speed: '13',
-			},
-		}
-
-		expect(tryUpdatePresetAndSpeedEncodingsInActions(action)).toBe(true)
-
-		const { actionId, options } = action
-		expect(actionId).toBe(PresetActionId.SetPresetDriveSpeed)
-		expect(options[SetPresetDriveSpeedPresetId]).toBe(105)
-		expect(options[SetPresetDriveSpeedSpeedId]).toBe(19)
 	})
 })

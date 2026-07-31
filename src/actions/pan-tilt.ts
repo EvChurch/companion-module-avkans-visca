@@ -13,7 +13,7 @@ import {
 	PanTiltPositionInquiry,
 	sendPanTiltCommand,
 } from '../camera/pan-tilt.js'
-import type { PtzOpticsInstance } from '../instance.js'
+import type { AvkansLv20nInstance } from '../instance.js'
 import { speedChoices } from './speeds.js'
 import { repr } from '../utils/repr.js'
 
@@ -90,7 +90,7 @@ function getSpeed(options: CompanionOptionValues, type: PanOrTilt): number | str
  */
 export const PanTiltSpeedSetSpeedId = 'speed'
 
-export function panTiltActions(instance: PtzOpticsInstance): ActionDefinitions<PanTiltActionId> {
+export function panTiltActions(instance: AvkansLv20nInstance): ActionDefinitions<PanTiltActionId> {
 	function createPanTiltCallback(direction: readonly [number, number]) {
 		return async (_event: CompanionActionEvent) => {
 			const { panSpeed, tiltSpeed } = instance.panTiltSpeed()

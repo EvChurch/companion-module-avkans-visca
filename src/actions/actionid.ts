@@ -1,5 +1,4 @@
 import type { CompanionActionDefinition } from '@companion-module/base'
-import type { AutoTrackingActionId } from './auto-tracking.js'
 import type { CustomCommandActionId } from './custom-command.js'
 import type { ExposureActionId } from './exposure.js'
 import type { FocusActionId } from './focus.js'
@@ -17,8 +16,7 @@ import type { ZoomActionId } from './zoom.js'
 export type ActionDefinitions<ActionId extends string> = Record<ActionId, CompanionActionDefinition>
 
 /** All module action IDs. */
-export type PtzOpticsActionId =
-	| AutoTrackingActionId
+export type AvkansLv20nActionId =
 	| CustomCommandActionId
 	| ExposureActionId
 	| FocusActionId

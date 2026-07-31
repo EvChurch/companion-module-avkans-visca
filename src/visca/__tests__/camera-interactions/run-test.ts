@@ -4,7 +4,7 @@ import type { Expect, IsNever } from 'type-testing'
 import { isValidHost } from '../../../config.js'
 import type { Answer, AnswerParameters } from '../../inquiry.js'
 import { type ExpectedAnswer, type Interaction, type Match } from './interactions.js'
-import { type MessageType, type PartialInstance, VISCAPort } from '../../port.js'
+import { type MessageType, type PartialInstance, VISCAPort, type VISCATransportMode } from '../../port.js'
 import type { Bytes } from '../../../utils/byte.js'
 import { prettyBytes } from '../../../utils/pretty.js'
 import { repr } from '../../../utils/repr.js'
@@ -233,9 +233,10 @@ async function verifyInteractions(
 	port: number,
 	interactions: readonly Interaction[],
 	finalStatus: InstanceStatus,
+	transportMode: VISCATransportMode,
 ): Promise<void> {
 	const instance = new MockInstance()
-	const clientViscaPort = new VISCAPort(instance)
+	const clientViscaPort = new VISCAPort(instance, transportMode)
 
 	const camera = new Promise<Camera>((resolve: (camera: Camera) => void) => {
 		server.once('connection', (socket: net.Socket) => {
@@ -594,6 +595,7 @@ async function verifyInteractions(
 export async function RunCameraInteractionTest(
 	interactions: readonly Interaction[],
 	finalStatus: InstanceStatus,
+	transportMode: VISCATransportMode = 'raw',
 ): Promise<void> {
 	type ServerInfo = {
 		server: net.Server
@@ -625,5 +627,5 @@ export async function RunCameraInteractionTest(
 		},
 	)
 
-	return verifyInteractions(server, port, interactions, finalStatus)
+	return verifyInteractions(server, port, interactions, finalStatus, transportMode)
 }

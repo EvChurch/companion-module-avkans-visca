@@ -1,8 +1,7 @@
 import { combineRgb, type CompanionPresetDefinitions } from '@companion-module/base'
 import { ExposureActionId, ExposureModeId } from './actions/exposure.js'
 import { FocusActionId, FocusModeId } from './actions/focus.js'
-import { AutoTrackingActionId, TrackingId } from './actions/auto-tracking.js'
-import { OnScreenDisplayMenuStateId, OSDActionId, OSDNavigateDirectionId } from './actions/osd.js'
+import { OnScreenDisplayMenuStateId, OSDActionId } from './actions/osd.js'
 import { PanTiltActionId } from './actions/pan-tilt.js'
 import { PresetAsNumberId, PresetAsTextId, PresetIsTextId, RecallPresetId, SetPresetId } from './actions/presets.js'
 import { WhiteBalanceActionId, WhiteBalanceModeId } from './actions/white-balance.js'
@@ -491,54 +490,6 @@ export function getPresets(): CompanionPresetDefinitions {
 		feedbacks: [],
 	}
 
-	presets['focus_lock_preset'] = {
-		type: 'button',
-		category: 'Lens',
-		name: 'Focus Lock',
-		style: {
-			text: 'FOCUS\\nLOCK',
-			size: '18',
-			color: combineRgb(255, 255, 255),
-			bgcolor: combineRgb(0, 0, 0),
-		},
-		steps: [
-			{
-				down: [
-					{
-						actionId: FocusActionId.LockFocus,
-						options: {},
-					},
-				],
-				up: [],
-			},
-		],
-		feedbacks: [],
-	}
-
-	presets['focus_unlock_preset'] = {
-		type: 'button',
-		category: 'Lens',
-		name: 'Focus Unlock',
-		style: {
-			text: 'FOCUS\\nUNLOCK',
-			size: '18',
-			color: combineRgb(255, 255, 255),
-			bgcolor: combineRgb(0, 0, 0),
-		},
-		steps: [
-			{
-				down: [
-					{
-						actionId: FocusActionId.UnlockFocus,
-						options: {},
-					},
-				],
-				up: [],
-			},
-		],
-		feedbacks: [],
-	}
-
 	presets['exposure_mode_preset'] = {
 		type: 'button',
 		category: 'Exposure',
@@ -800,58 +751,6 @@ export function getPresets(): CompanionPresetDefinitions {
 		feedbacks: [],
 	}
 
-	presets['auto_tracking_on'] = {
-		type: 'button',
-		category: 'Auto Tracking',
-		name: 'Auto Tracking On',
-		style: {
-			text: 'Auto\\nTracking\\nOn',
-			size: '14',
-			color: combineRgb(255, 255, 255),
-			bgcolor: combineRgb(0, 0, 0),
-		},
-		steps: [
-			{
-				down: [
-					{
-						actionId: AutoTrackingActionId.AutoTracking,
-						options: {
-							[TrackingId]: 'on',
-						},
-					},
-				],
-				up: [],
-			},
-		],
-		feedbacks: [],
-	}
-
-	presets['auto_tracking_off'] = {
-		type: 'button',
-		category: 'Auto Tracking',
-		name: 'Auto Tracking Off',
-		style: {
-			text: 'Auto\\nTracking\\nOff',
-			size: '14',
-			color: combineRgb(255, 255, 255),
-			bgcolor: combineRgb(0, 0, 0),
-		},
-		steps: [
-			{
-				down: [
-					{
-						actionId: AutoTrackingActionId.AutoTracking,
-						options: {
-							[TrackingId]: 'off',
-						},
-					},
-				],
-				up: [],
-			},
-		],
-		feedbacks: [],
-	}
-
 	presets['osd_toggle'] = {
 		type: 'button',
 		category: 'OSD Menu',
@@ -876,41 +775,6 @@ export function getPresets(): CompanionPresetDefinitions {
 			},
 		],
 		feedbacks: [],
-	}
-
-	for (const [DIRECTION, IMAGE] of [
-		['up', IMAGE_UP],
-		['right', IMAGE_RIGHT],
-		['down', IMAGE_DOWN],
-		['left', IMAGE_LEFT],
-	]) {
-		presets['osd_navigate_' + DIRECTION] = {
-			type: 'button',
-			category: 'OSD Menu',
-			name: 'OSD Navigate',
-			style: {
-				text: '',
-				png64: IMAGE,
-				pngalignment: 'center:center',
-				size: '18',
-				color: combineRgb(0xff, 0xff, 0xff),
-				bgcolor: combineRgb(0, 0, 0),
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: OSDActionId.OSDNavigate,
-							options: {
-								[OSDNavigateDirectionId]: DIRECTION,
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [],
-		}
 	}
 
 	presets['osd_enter'] = {

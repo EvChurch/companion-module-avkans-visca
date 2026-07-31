@@ -1267,6 +1267,27 @@ __metadata:
   languageName: node
   linkType: hard
 
+"avkans-visca@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "avkans-visca@workspace:."
+  dependencies:
+    "@companion-module/base": "npm:~1.13.6"
+    "@companion-module/tools": "npm:^2.6.1"
+    "@types/node": "npm:^22.15.18"
+    eslint: "npm:~10.0.0"
+    eslint-plugin-n: "npm:~17.23.2"
+    husky: "npm:^9.1.7"
+    knip: "npm:^5.50.5"
+    lint-staged: "npm:^15.5.1"
+    prettier: "npm:^3.5.3"
+    rimraf: "npm:^6.0.1"
+    type-testing: "npm:^0.2.0"
+    typescript: "npm:~6.0.3"
+    typescript-eslint: "npm:~8.59.0"
+    vitest: "npm:^4.1.5"
+  languageName: unknown
+  linkType: soft
+
 "balanced-match@npm:^4.0.2":
   version: 4.0.3
   resolution: "balanced-match@npm:4.0.3"
@@ -3332,27 +3353,6 @@ __metadata:
   checksum: 10c0/9c7045a1a2928094b5b9b15336dcd2a7b1c052f674550df63cc3f36cd44028e5080448175b6f6ca32b642de81150f5e7b1a98b728f15cb069f2dd60ac2616b96
   languageName: node
   linkType: hard
-
-"ptzoptics-visca@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "ptzoptics-visca@workspace:."
-  dependencies:
-    "@companion-module/base": "npm:~1.13.6"
-    "@companion-module/tools": "npm:^2.6.1"
-    "@types/node": "npm:^22.15.18"
-    eslint: "npm:~10.0.0"
-    eslint-plugin-n: "npm:~17.23.2"
-    husky: "npm:^9.1.7"
-    knip: "npm:^5.50.5"
-    lint-staged: "npm:^15.5.1"
-    prettier: "npm:^3.5.3"
-    rimraf: "npm:^6.0.1"
-    type-testing: "npm:^0.2.0"
-    typescript: "npm:~6.0.3"
-    typescript-eslint: "npm:~8.59.0"
-    vitest: "npm:^4.1.5"
-  languageName: unknown
-  linkType: soft
 
 "punycode@npm:^2.1.0":
   version: 2.3.1

@@ -1,19 +1,25 @@
-# companion-module-ptzoptics-visca
+# companion-module-avkans-visca
 
-See [HELP.md](./companion/HELP.md) and [LICENSE](./LICENSE)
+A Bitfocus Companion module for controlling an AVKANS LV20N camera using its documented VISCA over IP protocol.
 
 ## Getting started
 
-Executing a `yarn` command should perform all necessary steps to develop the module. If it doesn't, follow the steps below.
+1. In the LV20N web interface, open **Control Protocol Config**.
+2. Enable **Visca Transmission**, select **TCP**, and set **Work Mode** to **Server**.
+3. Set the camera port to `1259`, or choose another unused port and use the same value in Companion.
+4. Add the **AVKANS VISCA** connection in Companion and enter the camera IP and VISCA TCP port.
 
-First, download and install module dependencies using `yarn install`. You can then build the module using `yarn build`. The module can be loaded by Companion by adding a symlink to the module folder to the [`companion-module-dev`](https://github.com/bitfocus/companion-module-base/wiki) you specify in your Companion installation's settings. (Or you can simply clone the module into a folder inside `companion-module-dev`.)
+The module adds the LV20N VISCA over IP header and sequence number automatically. Custom commands should contain only the raw VISCA command bytes, beginning with `81` and ending with `FF`.
 
-Use `yarn lint` to check code style and `yarn lint --fix` to fix mechanically-fixable formatting errors. Use `yarn test` to run module tests. The module includes a Github workflow that lints module code and runs tests when you push to Github or create a PR, so you can check lint/testing results for your pushes in the "Actions" tab of your Github repository.
+See [companion/HELP.md](./companion/HELP.md) for supported controls and troubleshooting. The source camera documentation is available from the [AVKANS documents page](https://avkans.com/pages/documents).
 
-Run `yarn dev` to compile module code, then watch for changes to automatically recompile it. This is a useful way to quickly test code changes as you work on them.
+## Development
 
-## Supported cameras
+Run `yarn install`, then use:
 
-This module exists to support PTZOptics cameras, first and foremost. G3 series cameras are probably most supported, because that's what the module maintainer uses himself. G2 series cameras are expected to work reasonably well, too, but they're less well-tested and so we rely on user testing to ensure support.
+- `yarn test` for the test suite
+- `yarn check-types` for TypeScript validation
+- `yarn lint` for linting
+- `yarn build` to compile the module
 
-This module uses VISCA over TCP/IP to control cameras. This protocol, initially developed by Sony, is implemented by many manufacturers for many different cameras. But cameras often implement it in subtly different form. This module attempts to enable support for non-PTZOptics cameras. But when such support would be incompatible with PTZOptics cameras -- for example, if a camera uses a different byte sequence for a command than PTZOptics cameras do -- the module will only support the PTZOptics mechanism. Users who use non-PTZOptics cameras are expected to use the "Custom command" action to work around this.
+This project was derived from [bitfocus/companion-module-ptzoptics-visca](https://github.com/bitfocus/companion-module-ptzoptics-visca) under the MIT License.

@@ -5,7 +5,7 @@ import type {
 	CompanionOptionValues,
 } from '@companion-module/base'
 import type { ActionDefinitions } from './actionid.js'
-import type { PtzOpticsInstance } from '../instance.js'
+import type { AvkansLv20nInstance } from '../instance.js'
 import type { Bytes } from '../utils/byte.js'
 import type { Mutable } from '../utils/mutable.js'
 import { type CommandParameters, type CommandParamValues, UserDefinedCommand } from '../visca/command.js'
@@ -175,7 +175,7 @@ export async function computeCustomCommandAndOptions(
 	return { command, paramValues }
 }
 
-export function customCommandActions(instance: PtzOpticsInstance): ActionDefinitions<CustomCommandActionId> {
+export function customCommandActions(instance: AvkansLv20nInstance): ActionDefinitions<CustomCommandActionId> {
 	const PARAMETER_LIST_REGEX = '/^(?:[0-9]+(?:, ?[0-9]+)*(?:; ?[0-9]+(?:, ?[0-9]+)*)*|)$/'
 
 	return {
@@ -184,9 +184,9 @@ export function customCommandActions(instance: PtzOpticsInstance): ActionDefinit
 			description:
 				'Send a command of custom bytes (with embedded parameters filled ' +
 				'by user-defined expression) to the camera.  The camera must ' +
-				'respond with the standard ACK + Completion response to the ' +
-				'command or with an error.  Refer to PTZOptics VISCA over IP ' +
-				'command documentation for command structure details.',
+				'respond with Completion (with or without a preceding ACK) or ' +
+				'with an error. Refer to the LV20N VISCA command documentation ' +
+				'for command structure details.',
 			options: [
 				{
 					type: 'textinput',

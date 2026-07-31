@@ -1,20 +1,23 @@
 import { InstanceStatus, TCPHelper, type TCPHelperEvents } from '@companion-module/base'
 import type { Expect, IsNever } from 'type-testing'
 import type { Command, CommandParameters, CommandParamValues, NoCommandParameters } from './command.js'
-import type { PtzOpticsInstance } from '../instance.js'
+import type { AvkansLv20nInstance } from '../instance.js'
 import { checkMessageBytes } from './message.js'
 import type { Answer, AnswerMessage, AnswerParameters, Inquiry } from './inquiry.js'
 import type { Host } from '../config.js'
 import type { Bytes } from '../utils/byte.js'
 import { prettyBytes } from '../utils/pretty.js'
+import { encodeViscaOverIpPacket, type ViscaOverIpMessageType, ViscaOverIpParser } from './visca-over-ip.js'
 
 const BLAME_MODULE =
-	'This is likely a bug in the ptzoptics-visca Companion module.  Please ' +
+	'This is likely a bug in the avkans-visca Companion module.  Please ' +
 	"click the bug icon by any camera instance in the table in Companion's " +
 	'Connections tab to report it.'
 
 /** The type of a VISCA message sent to a camera. */
 export type MessageType = 'command' | 'inquiry'
+
+export type VISCATransportMode = 'raw' | 'visca-over-ip'
 
 /**
  * The type of the resolve handler for a pending VISCA message sent to the
@@ -50,6 +53,9 @@ abstract class PendingMessage {
 	 */
 	readonly userDefined: boolean
 
+	/** The VISCA over IP sequence number used to send this message. */
+	sequence: number | undefined
+
 	/**
 	 * The resolve handler if the response to this message is an error, yet not
 	 * an error that is inherently unrecoverable and requires the connection to
@@ -78,9 +84,10 @@ abstract class PendingMessage {
 	 *    A handler function to use if a fatal error occurred while processing
 	 *    the response to this message.
 	 */
-	constructor(bytes: Bytes, userDefined: boolean, reject: MessageRejectFatally) {
+	constructor(bytes: Bytes, userDefined: boolean, sequence: number | undefined, reject: MessageRejectFatally) {
 		this.bytes = bytes
 		this.userDefined = userDefined
+		this.sequence = sequence
 		this.#reject = reject
 	}
 
@@ -94,21 +101,10 @@ abstract class PendingMessage {
 	 * fall out of sync -- are treated as fatal because we no longer know what
 	 * message a response corresponds to.
 	 *
-	 * Errors returned by the camera to individual commands are usually *not*
-	 * treated as fatal.  People use this module with non-PTZOptics cameras that
-	 * may not support commands identical to how PTZOptics cameras support them.
-	 * We'd rather we only broke them if PTZOptics cameras demanded it.
-	 *
-	 * But even PTZOptics cameras' command sets vary across time and firmware
-	 * revision, so it's perilous to take a hard line.  (Within the commands
-	 * this module exposes, the Exposure Mode action's "Bright mode (manual)"
-	 * setting seems to be supported with G2 cameras but doesn't exist with some
-	 * G3 firmware revisions.  And the Preset Drive Speed command is
-	 * preset-specific with some models/firmware, but universal with others.)
-	 *
-	 * Unless and until we expose some way of selecting the camera model in an
-	 * instance configuration field, we log errors returned by the camera but
-	 * don't fail the connection.
+	 * Errors returned by the camera for individual commands are usually *not*
+	 * treated as fatal. Firmware revisions may differ in which commands they
+	 * accept, so the module logs these errors while keeping the connection
+	 * available for subsequent messages.
 	 *
 	 * @param reason
 	 *    A message indicating the reason for the fatal error.
@@ -168,8 +164,14 @@ class PendingCommand extends PendingMessage {
 	 *    A handler function to use if a fatal error occurred while processing
 	 *    the response to this message.
 	 */
-	constructor(bytes: Bytes, userDefined: boolean, resolve: CommandResolve, reject: MessageRejectFatally) {
-		super(bytes, userDefined, reject)
+	constructor(
+		bytes: Bytes,
+		userDefined: boolean,
+		sequence: number | undefined,
+		resolve: CommandResolve,
+		reject: MessageRejectFatally,
+	) {
+		super(bytes, userDefined, sequence, reject)
 
 		this.resolve = resolve
 	}
@@ -223,11 +225,12 @@ class PendingInquiry<Parameters extends AnswerParameters> extends PendingMessage
 	constructor(
 		bytes: Bytes,
 		userDefined: boolean,
+		sequence: number | undefined,
 		resolve: InquiryResolve<Parameters>,
 		reject: MessageRejectFatally,
 		expectedReturn: AnswerMessage<Parameters>,
 	) {
-		super(bytes, userDefined, reject)
+		super(bytes, userDefined, sequence, reject)
 
 		this.resolve = resolve
 		this.expectedReturn = expectedReturn
@@ -243,10 +246,10 @@ class PendingInquiry<Parameters extends AnswerParameters> extends PendingMessage
 }
 
 /**
- * The subset of the `PtzOpticsInstance` interface used by `VISCAPort` to log
+ * The subset of the `AvkansLv20nInstance` interface used by `VISCAPort` to log
  * messages and update instance connection status.
  */
-export type PartialInstance = Pick<PtzOpticsInstance, 'log' | 'updateStatus' | 'debugLogging'>
+export type PartialInstance = Pick<AvkansLv20nInstance, 'log' | 'updateStatus' | 'debugLogging'>
 
 /**
  * Check whether the bytes of VISCA return message `returnMessage`, when masked,
@@ -272,7 +275,10 @@ function returnMatches<Parameters extends AnswerParameters>(
  * An async generator of arrays of bytes constituting distinct return messages
  * returned by the camera.
  */
-type ReturnMessages = AsyncGenerator<Bytes, void, unknown>
+type ReturnMessage = { readonly bytes: Bytes; readonly sequence: number | undefined }
+type ReturnMessages = AsyncGenerator<ReturnMessage, void, unknown>
+
+type MessageSent = { readonly sequence: number | undefined }
 
 type DisconnectedStatus = { type: 'disconnected' }
 
@@ -300,6 +306,8 @@ type ConnectionStatus = DisconnectedStatus | ConnectingStatus | ConnectedStatus
  * A port abstraction into which VISCA commands can be written.
  */
 export class VISCAPort {
+	readonly #transportMode: VISCATransportMode
+	#sequenceNumber = 1
 	/**
 	 * The TCP socket through which commands are sent and responses received,
 	 * if this port is open.
@@ -374,8 +382,9 @@ export class VISCAPort {
 	 * Create a VISCAPort associated with the provided instance.  The port is
 	 * initially closed and must be opened to be used.
 	 */
-	constructor(instance: PartialInstance) {
+	constructor(instance: PartialInstance, transportMode: VISCATransportMode = 'visca-over-ip') {
 		this.#instance = instance
+		this.#transportMode = transportMode
 	}
 
 	/** True iff this port is currently closed. */
@@ -454,6 +463,7 @@ export class VISCAPort {
 	 */
 	open(host: Host, port: number): void {
 		this.close('Socket is being reopened', InstanceStatus.Connecting)
+		this.#sequenceNumber = 1
 
 		const instance = this.#instance
 
@@ -620,6 +630,9 @@ export class VISCAPort {
 	async *#readReturnMessages(socket: TCPHelper): ReturnMessages {
 		/** Received data not yet parsed as full return messages. */
 		const receivedData: number[] = []
+		const receivedSequences: (number | undefined)[] = []
+		const packetParser = new ViscaOverIpParser()
+		const receiveState: { error?: Error } = {}
 
 		// eslint-disable-next-line @typescript-eslint/no-this-alias
 		const self = this
@@ -635,7 +648,18 @@ export class VISCAPort {
 						// Ignore incoming data if the connection's already closed
 						// (including if by module error).
 					} else {
-						for (const b of data) receivedData.push(b)
+						try {
+							const packets =
+								self.#transportMode === 'visca-over-ip'
+									? packetParser.push(data)
+									: [{ sequence: undefined, payload: Array.from(data) }]
+							for (const { sequence, payload } of packets) {
+								receivedData.push(...payload)
+								receivedSequences.push(...payload.map(() => sequence))
+							}
+						} catch (err) {
+							receiveState.error = err instanceof Error ? err : new Error('Unknown receive error')
+						}
 						resolve()
 						moreDataAvailable = readMoreData()
 					}
@@ -646,6 +670,9 @@ export class VISCAPort {
 		for (;;) {
 			while (receivedData.length === 0) {
 				await moreDataAvailable
+				if (receiveState.error !== undefined) {
+					throw receiveState.error
+				}
 			}
 
 			// PTZOptics VISCA over IP responses always begin with 0x90.  But
@@ -689,10 +716,12 @@ export class VISCAPort {
 			}
 
 			const returnMessage = receivedData.splice(0, terminatorOffset + 1)
+			const sequence = receivedSequences[0]
+			receivedSequences.splice(0, terminatorOffset + 1)
 			if (this.#instance.debugLogging) {
 				this.#instance.log('info', `RECV: ${prettyBytes(returnMessage)}`)
 			}
-			yield returnMessage
+			yield { bytes: returnMessage, sequence }
 		}
 	}
 
@@ -706,7 +735,7 @@ export class VISCAPort {
 	 * 	 A generator of return messages from the socket to the camera.
 	 */
 	async #processReturnMessages(socket: TCPHelper, returnMessages: ReturnMessages): Promise<void> {
-		for await (const returnMessage of returnMessages) {
+		for await (const { bytes: returnMessage, sequence } of returnMessages) {
 			// The response to a command/inquiry consists of one or more return
 			// messages.  A return message begins with 90 and ends at the first
 			// FF byte.
@@ -772,7 +801,7 @@ export class VISCAPort {
 					)
 				}
 
-				const result = this.#findFirstCommandWaitingForInitialResponse()
+				const result = this.#findCommandWaitingForInitialResponse(sequence)
 				if (result === undefined) {
 					throw this.#errorWhileProcessingMessage(`Received ACK without a pending command`, returnMessage)
 				}
@@ -815,7 +844,20 @@ export class VISCAPort {
 					}
 
 					const commandsInSocket = this.#waitingForCompletion.get(socket)
-					const command = commandsInSocket && commandsInSocket.shift()
+					const commandIndex = commandsInSocket?.findIndex(
+						(command) => sequence === undefined || command.sequence === sequence,
+					)
+					let command =
+						commandsInSocket !== undefined && commandIndex !== undefined && commandIndex >= 0
+							? commandsInSocket.splice(commandIndex, 1)[0]
+							: undefined
+					if (command === undefined && this.#transportMode === 'visca-over-ip') {
+						const initial = this.#findCommandWaitingForInitialResponse(sequence)
+						if (initial !== undefined) {
+							this.#waitingForInitialResponse.splice(initial.i, 1)
+							command = initial.pendingCommand
+						}
+					}
 					if (command === undefined) {
 						throw this.#errorWhileProcessingMessage(
 							`Received Completion for socket ${socket}, but no command is executing in it`,
@@ -830,7 +872,7 @@ export class VISCAPort {
 				// Inquiry response:
 				//   90 50 ...one or more non-FF bytes...  FF
 
-				const result = this.#findFirstInquiryWaitingForInitialResponse()
+				const result = this.#findInquiryWaitingForInitialResponse(sequence)
 				if (result === undefined) {
 					throw this.#errorWhileProcessingMessage('Received inquiry response without a pending inquiry', returnMessage)
 				}
@@ -896,7 +938,7 @@ export class VISCAPort {
 					// later.  So we implement for now the only behavior
 					// observed and hopefully wash our hands of the matter.
 
-					const commandAwaitingInitialResponse = this.#findFirstCommandWaitingForInitialResponse()
+					const commandAwaitingInitialResponse = this.#findCommandWaitingForInitialResponse(sequence)
 					if (commandAwaitingInitialResponse === undefined) {
 						throw this.#errorWhileProcessingMessage(
 							'Received Command Not Executable with no commands awaiting initial response',
@@ -931,7 +973,14 @@ export class VISCAPort {
 					)
 				}
 
-				const message = this.#waitingForInitialResponse[0]
+				const messageIndex = this.#findMessageWaitingForInitialResponse(sequence)
+				if (messageIndex === -1) {
+					throw this.#errorWhileProcessingMessage(
+						'Unexpected error with no matching message awaiting initial response',
+						returnMessage,
+					)
+				}
+				const message = this.#waitingForInitialResponse[messageIndex]
 				const messageBytes = message.bytes
 
 				//   Command Buffer Full:
@@ -943,10 +992,11 @@ export class VISCAPort {
 					// and the second try will succeed.
 					if (this.#waitingForInitialResponse.length === 1) {
 						this.#instance.log('info', `Command buffer full: resending ${prettyBytes(messageBytes)}`)
-						const res = await this.#sendBytes(socket, messageBytes)
+						const res = await this.#sendBytes(socket, message.type, messageBytes)
 						if (res instanceof Error) {
 							throw res
 						}
+						message.sequence = res.sequence
 						continue
 					}
 
@@ -956,7 +1006,7 @@ export class VISCAPort {
 					// initial ordering.  Record a nonfatal error (that will end
 					// up in logs) and hope for the best as far as the user's
 					// intended semantics go.
-					this.#waitingForInitialResponse.shift()
+					this.#waitingForInitialResponse.splice(messageIndex, 1)
 					message.nonfatalError(`Command buffer full: ${prettyBytes(messageBytes)} was not executed`)
 					continue
 				}
@@ -964,26 +1014,12 @@ export class VISCAPort {
 				//   Syntax Error:
 				//     90 60 02 FF
 				if (thirdByte === 0x02) {
-					// Different models of camera support different features, so
-					// we can't treat a syntax error in a message defined by
-					// this module as an error:
-					//
-					// 1) The Preset Drive Speed action triggers a syntax error
-					//    with G3 cameras: the actual command doesn't contain a
-					//    preset number parameter, so the speed change applies
-					//    to all presets.  But we don't know if older cameras
-					//    support it.
-					// 2) The Exposure Mode action exposes a "Bright mode
-					//    (manual)" option that was present in G2 cameras[0] but
-					//    doesn't exist in G3 cameras[1] and triggers a syntax
-					//    error with them.
-					//
-					// 0. https://ptzoptics.imagerelay.com/share/PTZOptics-G2-VISCA-over-IP-Commands
-					// 1. https://ptzoptics.imagerelay.com/share/PTZOptics-G3-VISCA-over-IP-Commands
+					// A firmware revision may reject a documented module command,
+					// so report the individual failure without dropping the connection.
 					const blame = message.userDefined ? 'Double-check the syntax of the message.' : BLAME_MODULE
 					const reason = `Camera reported a syntax error in the message ${prettyBytes(messageBytes)}.  ${blame}`
 					message.nonfatalError(reason)
-					this.#waitingForInitialResponse.shift()
+					this.#waitingForInitialResponse.splice(messageIndex, 1)
 					continue
 				}
 
@@ -1005,10 +1041,18 @@ export class VISCAPort {
 	 * Find the first command awaiting an initial response, potentially among
 	 * pending inquiries.
 	 */
-	#findFirstCommandWaitingForInitialResponse(): { i: number; pendingCommand: PendingCommand } | undefined {
+	#findMessageWaitingForInitialResponse(sequence: number | undefined): number {
+		return this.#waitingForInitialResponse.findIndex(
+			(message) => sequence === undefined || message.sequence === sequence,
+		)
+	}
+
+	#findCommandWaitingForInitialResponse(
+		sequence: number | undefined,
+	): { i: number; pendingCommand: PendingCommand } | undefined {
 		for (let i = 0; i < this.#waitingForInitialResponse.length; i++) {
 			const message = this.#waitingForInitialResponse[i]
-			if (message.type === 'command') {
+			if (message.type === 'command' && (sequence === undefined || message.sequence === sequence)) {
 				return { i, pendingCommand: message as PendingCommand }
 			}
 		}
@@ -1020,12 +1064,12 @@ export class VISCAPort {
 	 * Find the first inquiry awaiting an initial response, potentially among
 	 * pending commands.
 	 */
-	#findFirstInquiryWaitingForInitialResponse():
-		| { i: number; pendingInquiry: PendingInquiry<AnswerParameters> }
-		| undefined {
+	#findInquiryWaitingForInitialResponse(
+		sequence: number | undefined,
+	): { i: number; pendingInquiry: PendingInquiry<AnswerParameters> } | undefined {
 		for (let i = 0; i < this.#waitingForInitialResponse.length; i++) {
 			const message = this.#waitingForInitialResponse[i]
-			if (message.type === 'inquiry') {
+			if (message.type === 'inquiry' && (sequence === undefined || message.sequence === sequence)) {
 				return { i, pendingInquiry: message as PendingInquiry<AnswerParameters> }
 			}
 		}
@@ -1065,13 +1109,15 @@ export class VISCAPort {
 	): Promise<void | Error> {
 		const messageBytes = command.toBytes(...paramValues)
 		const isUserDefined = command.isUserDefined()
-		return this.#sendMessage('command', isUserDefined, messageBytes).then(async (result: void | Error) => {
-			if (result !== undefined) {
+		return this.#sendMessage('command', isUserDefined, messageBytes).then(async (result: MessageSent | Error) => {
+			if (result instanceof Error) {
 				return result
 			}
 
 			return new Promise((resolve: CommandResolve, reject: MessageRejectFatally) => {
-				this.#waitingForInitialResponse.push(new PendingCommand(messageBytes, isUserDefined, resolve, reject))
+				this.#waitingForInitialResponse.push(
+					new PendingCommand(messageBytes, isUserDefined, result.sequence, resolve, reject),
+				)
 			})
 		})
 	}
@@ -1102,21 +1148,21 @@ export class VISCAPort {
 	): Promise<Answer<Parameters> | Error> {
 		const messageBytes = inquiry.toBytes()
 		const isUserDefined = inquiry.isUserDefined()
-		return this.#sendMessage('inquiry', isUserDefined, messageBytes).then(async (result: void | Error) => {
-			if (result !== undefined) {
+		return this.#sendMessage('inquiry', isUserDefined, messageBytes).then(async (result: MessageSent | Error) => {
+			if (result instanceof Error) {
 				return result
 			}
 
 			return new Promise((resolve: InquiryResolve<Parameters>, reject: MessageRejectFatally) => {
 				this.#waitingForInitialResponse.push(
-					new PendingInquiry(messageBytes, isUserDefined, resolve, reject, inquiry.answer()),
+					new PendingInquiry(messageBytes, isUserDefined, result.sequence, resolve, reject, inquiry.answer()),
 				)
 			})
 		})
 	}
 
 	/** Send a message of the given type and bytes. */
-	async #sendMessage(type: MessageType, userDefined: boolean, messageBytes: Bytes): Promise<void | Error> {
+	async #sendMessage(type: MessageType, userDefined: boolean, messageBytes: Bytes): Promise<MessageSent | Error> {
 		const err = checkMessageBytes(messageBytes)
 		if (err !== null) {
 			// The bytes should already have been validated, so if this is hit,
@@ -1144,18 +1190,23 @@ export class VISCAPort {
 			}
 		}
 
-		return this.#sendBytes(socket, messageBytes)
+		return this.#sendBytes(socket, type, messageBytes)
 	}
 
 	/** Write the supplied bytes to the socket. */
-	async #sendBytes(socket: TCPHelper, bytes: Bytes): Promise<void | Error> {
-		if (this.#instance.debugLogging) {
-			this.#instance.log('info', `SEND: ${prettyBytes(bytes)}...`)
+	async #sendBytes(socket: TCPHelper, type: ViscaOverIpMessageType, bytes: Bytes): Promise<MessageSent | Error> {
+		const sequence = this.#transportMode === 'visca-over-ip' ? this.#sequenceNumber : undefined
+		const wireBytes = sequence === undefined ? bytes : encodeViscaOverIpPacket(type, sequence, bytes)
+		if (this.#transportMode === 'visca-over-ip') {
+			this.#sequenceNumber = (this.#sequenceNumber + 1) >>> 0
 		}
-		const sent = await socket.send(Buffer.from(bytes))
+		if (this.#instance.debugLogging) {
+			this.#instance.log('info', `SEND: ${prettyBytes(wireBytes)}...`)
+		}
+		const sent = await socket.send(Buffer.from(wireBytes))
 		if (!sent) {
 			return new Error('Data not sent: socket is closed')
 		}
-		return undefined
+		return { sequence }
 	}
 }

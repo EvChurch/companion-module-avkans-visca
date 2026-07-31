@@ -1,5 +1,5 @@
 import type { ActionDefinitions } from './actionid.js'
-import type { PtzOpticsInstance } from '../instance.js'
+import type { AvkansLv20nInstance } from '../instance.js'
 import { CameraPower, type CameraPowerState } from '../camera/power.js'
 import { optionConversions } from './option-conversion.js'
 
@@ -19,7 +19,7 @@ const [getPowerState] = optionConversions<CameraPowerState, typeof PowerStateId>
 	'on',
 )
 
-export function powerActions(instance: PtzOpticsInstance): ActionDefinitions<PowerActionId> {
+export function powerActions(instance: AvkansLv20nInstance): ActionDefinitions<PowerActionId> {
 	return {
 		[PowerActionId.CameraPowerState]: {
 			name: 'Power Camera',

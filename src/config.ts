@@ -7,7 +7,7 @@ import type { Branded } from './utils/brand.js'
  * Nothing ensures that Companion config objects conform to the `TConfig` type
  * specified by a module.  Therefore we leave this type underdefined, not
  * well-defined, so that configuration info will be defensively processed.  (We
- * use `PtzOpticsConfig` to ensure configuration data is well-typed.  See
+ * use `AvkansLv20nConfig` to ensure configuration data is well-typed.  See
  * `validateConfig` for details.)
  */
 export interface RawConfig {
@@ -39,7 +39,7 @@ export function getConfigFields(): SomeCompanionConfigField[] {
 			id: 'info',
 			width: 12,
 			label: 'Information',
-			value: 'This module controls PTZ cameras with VISCA over IP protocol',
+			value: 'Configure the LV20N Control Protocol page for TCP, Server mode, and the same port used below.',
 		},
 		{
 			type: 'textinput',
@@ -55,7 +55,7 @@ export function getConfigFields(): SomeCompanionConfigField[] {
 			id: 'port',
 			label: 'VISCA TCP port',
 			width: 6,
-			default: '5678',
+			default: '1259',
 			regex: Regex.PORT,
 			required: true,
 		},
@@ -70,7 +70,7 @@ export function getConfigFields(): SomeCompanionConfigField[] {
 }
 
 /** Validated config information for the camera connection being manipulated. */
-export type PtzOpticsConfig = {
+export type AvkansLv20nConfig = {
 	/** The TCP/IP IP address of the camera, or a non-IP address string. */
 	host: string
 
@@ -89,7 +89,7 @@ export type PtzOpticsConfig = {
  * Instance config suitable for use at instance creation before initialization
  * with an actual config.
  */
-export function noCameraConfig(): PtzOpticsConfig {
+export function noCameraConfig(): AvkansLv20nConfig {
 	return {
 		// Empty host ensures that these options won't trigger a connection.
 		host: '',
@@ -102,7 +102,7 @@ export function noCameraConfig(): PtzOpticsConfig {
  * Validate `config` as validly-encoded options, massaging options into type
  * conformance as necessary.
  */
-export function validateConfig(config: RawConfig): asserts config is PtzOpticsConfig {
+export function validateConfig(config: RawConfig): asserts config is AvkansLv20nConfig {
 	config.host = toHost(config.host)
 	config.port = toPort(config.port)
 	config[DebugLoggingOptionId] = toDebugLogging(config[DebugLoggingOptionId])
@@ -129,7 +129,7 @@ function toHost(host: RawConfig['host']): string {
 	return ''
 }
 
-const DefaultPort = 5678
+const DefaultPort = 1259
 
 const portRegExp = new RegExp(Regex.PORT.slice(1, -1))
 
@@ -151,7 +151,7 @@ const toDebugLogging = Boolean
  * determine whether applying the new config to it requires restarting the
  * connection.
  */
-export function canUpdateConfigWithoutRestarting(oldConfig: PtzOpticsConfig, newConfig: PtzOpticsConfig): boolean {
+export function canUpdateConfigWithoutRestarting(oldConfig: AvkansLv20nConfig, newConfig: AvkansLv20nConfig): boolean {
 	// A different host or port straightforwardly requires a connection restart.
 	if (oldConfig.host !== newConfig.host || oldConfig.port !== newConfig.port) {
 		return false

@@ -1,17 +1,16 @@
 {
 	"$schema": "../node_modules/@companion-module/base/assets/manifest.schema.json",
-	"id": "ptzoptics-visca",
-	"name": "PTZOptics Visca",
-	"shortname": "visca",
-	"description": "Module to control PTZ cameras with PTZoptics Visca protocol over IP",
+	"id": "avkans-visca",
+	"name": "AVKANS VISCA",
+	"shortname": "LV20N",
+	"description": "Control the AVKANS LV20N using its documented VISCA over IP protocol",
 	"version": "0.0.0",
 	"license": "MIT",
-	"repository": "git+https://github.com/bitfocus/companion-module-ptzoptics-visca.git",
-	"bugs": "https://github.com/bitfocus/companion-module-ptzoptics-visca/issues",
+	"repository": "git+https://github.com/evchurch/companion-module-avkans-visca.git",
+	"bugs": "https://github.com/evchurch/companion-module-avkans-visca/issues",
 	"maintainers": [
 		{
-			"name": "Jeff Walden",
-			"email": "jwalden@mit.edu"
+			"name": "EV Church"
 		}
 	],
 	"runtime": {
@@ -21,7 +20,7 @@
 		"entrypoint": "../dist/main.js"
 	},
 	"legacyIds": [],
-	"manufacturer": "PTZoptics",
-	"products": ["VISCA"],
-	"keywords": ["Protocol", "Camera"]
+	"manufacturer": "AVKANS",
+	"products": ["LV20N"],
+	"keywords": ["Protocol", "Camera", "VISCA over IP"]
 }
