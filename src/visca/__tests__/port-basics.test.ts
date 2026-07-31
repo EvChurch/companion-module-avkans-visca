@@ -1,6 +1,7 @@
 import { InstanceStatus } from '@companion-module/base'
 import { describe, test } from 'vitest'
 import { OnScreenDisplayClose, OnScreenDisplayInquiry, OnScreenDisplayOpen } from '../../camera/osd.js'
+import { ModuleDefinedCommand } from '../command.js'
 import {
 	ACKCompletion,
 	Completion,
@@ -17,6 +18,8 @@ import {
 	InquirySucceeded,
 	SendCommand,
 	SendInquiry,
+	SendRawInquiry,
+	RawInquirySucceeded,
 } from './camera-interactions/interactions.js'
 import {
 	BlameModuleMatcher,
@@ -138,6 +141,47 @@ describe('VISCA port sending/receiving basics', () => {
 					[CameraReportedSyntaxErrorMatcher, MatchVISCABytes(OnScreenDisplayInquiryBytes), BlameModuleMatcher],
 					'osd-inquiry',
 				),
+			],
+			InstanceStatus.Ok,
+		)
+	})
+
+	test('captures a variable-length raw inquiry response over VISCA over IP', async () => {
+		const inquiry = [0x81, 0x09, 0x08, 0x07, 0xff] as const
+		const response = [0x90, 0x50, ...Buffer.from('10.0.3.112:255.255.255.0:10.0.3.1', 'ascii'), 0xff]
+		return RunCameraInteractionTest(
+			[
+				SendRawInquiry(inquiry, 'ip-info'),
+				CameraExpectIncomingBytes([0x01, 0x10, 0x00, inquiry.length, 0, 0, 0, 1, ...inquiry]),
+				CameraReplyBytes([0x01, 0x11, 0x00, response.length, 0, 0, 0, 1, ...response]),
+				RawInquirySucceeded(response, 'ip-info'),
+			],
+			InstanceStatus.Ok,
+			'visca-over-ip',
+		)
+	})
+
+	test('accepts addressed heartbeat responses', async () => {
+		const inquiry = [0x88, 0x09, 0x01, 0x01, 0xff] as const
+		return RunCameraInteractionTest(
+			[
+				SendRawInquiry(inquiry, 'heartbeat'),
+				CameraExpectIncomingBytes(inquiry),
+				CameraReplyBytes([0xa0, 0x50, 0x01, 0xff]),
+				RawInquirySucceeded([0xa0, 0x50, 0x01, 0xff], 'heartbeat'),
+			],
+			InstanceStatus.Ok,
+		)
+	})
+
+	test('accepts the VISCA address-set broadcast response', async () => {
+		const addressSet = new ModuleDefinedCommand([0x88, 0x30, 0x01, 0xff])
+		return RunCameraInteractionTest(
+			[
+				SendCommand(addressSet, 'address-set'),
+				CameraExpectIncomingBytes(addressSet.toBytes()),
+				CameraReplyBytes([0x88, 0x30, 0x02, 0xff]),
+				CommandSucceeded('address-set'),
 			],
 			InstanceStatus.Ok,
 		)

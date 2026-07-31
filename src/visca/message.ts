@@ -54,11 +54,11 @@ export function checkMessageBytes(bytes: Bytes): string | null {
 	// commands, and if command start/end weren't delimited as required here,
 	// it's hard to say what series of sent bytes a camera response indicating a
 	// syntax error (90 60 02 FF) would apply to.
-	if (bytes[0] !== 0x81) {
+	if (bytes[0] !== 0x81 && bytes[0] !== 0x88) {
 		// VISCA generally says the first byte is 8x, where x encodes the
 		// particular camera to which the command applies when cameras are
 		// connected in series.  But PTZOptics VISCA over TCP forces x=1.
-		return 'first byte in message must be 0x81'
+		return 'first byte in message must be 0x81 or broadcast address 0x88'
 	}
 
 	const idx = bytes.indexOf(0xff, 1)

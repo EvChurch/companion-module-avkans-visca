@@ -1,0 +1,53 @@
+import { describe, expect, test, vi } from 'vitest'
+import { lv20nCatalogActions } from './lv20n-catalog.js'
+import type { AvkansLv20nInstance } from '../instance.js'
+
+function mockInstance(): { instance: AvkansLv20nInstance; sendCommand: ReturnType<typeof vi.fn> } {
+	const sendCommand = vi.fn()
+	return {
+		instance: {
+			sendCommand,
+			log: vi.fn(),
+		} as unknown as AvkansLv20nInstance,
+		sendCommand,
+	}
+}
+
+describe('LV20N catalog actions', () => {
+	test('registers one searchable action for every workbook command group', () => {
+		const actions = lv20nCatalogActions(mockInstance().instance)
+		expect(Object.keys(actions)).toHaveLength(46)
+		expect(actions.lv20n_zoom?.name).toBe('LV20N: Zoom')
+		expect(actions.lv20n_tally?.name).toBe('LV20N: Tally light')
+		expect(actions.lv20n_ip_address?.name).toBe('LV20N: Network IP address')
+	})
+
+	test('uses neutral labels for parameters shared by opposite directions', () => {
+		const actions = lv20nCatalogActions(mockInstance().instance)
+		const zoomSpeed = actions.lv20n_zoom.options.find((option) => option.id === 'speed')
+		const focusSpeed = actions.lv20n_focus.options.find((option) => option.id === 'speed')
+
+		expect(zoomSpeed?.label).toBe('Speed')
+		expect(focusSpeed?.label).toBe('Speed')
+	})
+
+	test('sends the selected command with supplied parameters', async () => {
+		const { instance, sendCommand } = mockInstance()
+		const action = lv20nCatalogActions(instance).lv20n_zoom
+
+		await action.callback(
+			{
+				actionId: 'lv20n_zoom',
+				controlId: 'test',
+				id: 'test',
+				surfaceId: undefined,
+				options: { command: 'r14', position: 0x4000 },
+			},
+			{} as never,
+		)
+
+		expect(sendCommand).toHaveBeenCalledOnce()
+		const command = sendCommand.mock.calls[0][0]
+		expect(command.toBytes({})).toStrictEqual([0x81, 0x01, 0x04, 0x47, 0x04, 0x00, 0x00, 0x00, 0xff])
+	})
+})

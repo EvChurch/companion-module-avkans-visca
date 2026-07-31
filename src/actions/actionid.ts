@@ -8,6 +8,8 @@ import type { PowerActionId } from './power.js'
 import type { PresetActionId } from './presets.js'
 import type { WhiteBalanceActionId } from './white-balance.js'
 import type { ZoomActionId } from './zoom.js'
+import type { Lv20nCatalogActionId } from './lv20n-catalog.js'
+import type { Lv20nInquiryActionId } from './lv20n-inquiries.js'
 
 /**
  * A helper type to apply to a complete `CompanionActionDefinitions` for an
@@ -26,3 +28,5 @@ export type AvkansLv20nActionId =
 	| PresetActionId
 	| WhiteBalanceActionId
 	| ZoomActionId
+	| Lv20nCatalogActionId
+	| Lv20nInquiryActionId

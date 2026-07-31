@@ -2,6 +2,7 @@ node_modules/
 /pkg
 /pkg.tgz
 /ptzoptics-visca-*.tgz
+/avkans-visca-*.tgz
 /dist
 DEBUG-PACKAGED
 /.yarn
