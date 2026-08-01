@@ -71,10 +71,10 @@ The module currently represents one camera per Companion connection, so a shared
 **Variables and feedbacks**
 
 - R11. The module must expose active-camera variables for slot number, configured name, IP address, and connection status.
-- R12. Each configured camera slot must expose variables for configured name, IP address, connection status, active state, last inquiry ID, last formatted inquiry result, last raw response, and every decoded inquiry field supported by the module.
+- R12. Each configured camera slot must expose concise variables for configured name, IP address, connection status, active state, and every decoded camera-state value supported by the module.
 - R13. Inquiry actions must update the variables belonging to the camera that received the inquiry.
 - R14. The module must provide feedbacks for active-camera selection and per-camera connection status so selector and status buttons can be styled without expressions.
-- R15. Existing inquiry-result feedback behavior must be available for each configured camera and must evaluate the state belonging to the feedback's selected camera target.
+- R15. Each camera mode with a defined set of values must have a dedicated feedback that evaluates the selected camera's state, including when the target follows the active camera.
 
 **Configuration boundary**
 
@@ -154,7 +154,7 @@ flowchart TB
   - **Covers:** R11-R15.
   - **Given:** Camera 1 is active and Camera 2 is configured.
   - **When:** A power inquiry explicitly targets Camera 2.
-  - **Then:** Camera 2's power and last-inquiry surfaces update while Camera 1's inquiry state remains unchanged.
+  - **Then:** Camera 2's power variable and feedback update while Camera 1's state remains unchanged.
 
 ### Scope Boundaries
 
@@ -310,11 +310,11 @@ Implement U1 through U5 in dependency order. U2 establishes the runtime boundary
 - **Dependencies:** U1-U3.
 - **Files:** `src/camera-state.ts`, `src/camera-state.test.ts`, `src/variables.ts`, `src/actions/lv20n-inquiries.ts`, `src/actions/lv20n-inquiries.test.ts`, `src/feedbacks.ts`, `src/feedbacks.test.ts`, `src/instance.ts`.
 - **Approach:**
-  1. Store status, last-inquiry metadata, formatted results, raw responses, and decoded fields by configured slot.
-  2. Generate stable per-slot variable IDs and active aliases from shared inquiry-definition helpers.
+  1. Store each decoded camera-state value by configured slot.
+  2. Generate concise per-slot variable IDs and `camera_active_*` aliases from shared state definitions.
   3. Capture the resolved target before an inquiry is sent and update only that slot when its response returns.
   4. Refresh active aliases and feedbacks after selection, status, or active-camera inquiry changes.
-  5. Add active-camera and connection feedbacks and add target selection to existing inquiry value/equality feedbacks.
+  5. Add active-camera and connection feedbacks plus dedicated conditions for camera modes with defined choices.
 - **Patterns to follow:** Extend the catalog-driven variable generation in `src/variables.ts` and feedback caching in `src/feedbacks.ts`.
 - **Test scenarios:**
   1. Variable definitions are unique and include active aliases plus complete Camera 1 through Camera 4 scopes.
@@ -322,7 +322,7 @@ Implement U1 through U5 in dependency order. U2 establishes the runtime boundary
   3. Covers AE6. An inquiry targeting Camera 2 updates Camera 2 state while Camera 1 remains unchanged.
   4. An inquiry response that completes after active-camera selection changes remains attributed to its original slot.
   5. Active aliases mirror the newly selected slot immediately.
-  6. Active-camera, connection-status, inquiry-value, and inquiry-equality feedbacks evaluate the selected camera state.
+  6. Active-camera, connection-status, and dedicated camera-mode feedbacks evaluate the selected camera state.
   7. Feedback target choices use Active Camera followed by configured slots and skip empty slots.
 - **Verification:** State, inquiry, variable, and feedback tests prove complete attribution and projection for all supported inquiry fields.
 
@@ -331,13 +331,13 @@ Implement U1 through U5 in dependency order. U2 establishes the runtime boundary
 - **Goal:** Make the new configuration and control workflow installable and understandable, then verify the integrated module.
 - **Requirements:** R1-R16.
 - **Dependencies:** U1-U4.
-- **Files:** `README.md`, `companion/HELP.md`, `package.json`, `docs/solutions/design-patterns/workbook-driven-visca-catalogs.md`.
+- **Files:** `README.md`, `companion/HELP.md`, `package.json`, `docs/solutions/design-patterns/declarative-visca-catalogs.md`.
 - **Approach:**
   1. Document the four-slot roster, shared transport settings, target dropdown, selection actions, safe switching, and scoped variables/feedbacks.
   2. State that single-camera settings are not migrated and that custom IP/variable targets are deferred.
   3. Bump the module minor version and build the installable Companion package.
   4. Run a read-only inquiry smoke test against the available LV20N and use mock-camera tests for multi-session behavior.
-- **Patterns to follow:** Keep the existing workbook/transport documentation and package workflow.
+- **Patterns to follow:** Keep the existing protocol/transport documentation and package workflow.
 - **Test scenarios:**
   1. Package output contains the updated help, manifest, and compiled module.
   2. Read-only power, version, and IP-info inquiries still succeed against `10.201.0.50` using raw TCP.

@@ -2,24 +2,24 @@ import { describe, expect, test, vi } from 'vitest'
 import { lv20nCatalogActions } from './lv20n-catalog.js'
 import type { AvkansLv20nInstance } from '../instance.js'
 
-function mockInstance(): { instance: AvkansLv20nInstance; sendCommand: ReturnType<typeof vi.fn> } {
-	const sendCommand = vi.fn()
+function mockInstance(): { instance: AvkansLv20nInstance; sendCommandAndRefresh: ReturnType<typeof vi.fn> } {
+	const sendCommandAndRefresh = vi.fn()
 	return {
 		instance: {
-			sendCommand,
+			sendCommandAndRefresh,
 			log: vi.fn(),
 		} as unknown as AvkansLv20nInstance,
-		sendCommand,
+		sendCommandAndRefresh,
 	}
 }
 
 describe('LV20N catalog actions', () => {
-	test('registers one searchable action for every workbook command group', () => {
+	test('registers one searchable action for every camera command group', () => {
 		const actions = lv20nCatalogActions(mockInstance().instance)
 		expect(Object.keys(actions)).toHaveLength(46)
-		expect(actions.lv20n_zoom?.name).toBe('LV20N: Zoom')
-		expect(actions.lv20n_tally?.name).toBe('LV20N: Tally light')
-		expect(actions.lv20n_ip_address?.name).toBe('LV20N: Network IP address')
+		expect(actions.lv20n_zoom?.name).toBe('Camera control: Zoom')
+		expect(actions.lv20n_tally?.name).toBe('Camera control: Tally light')
+		expect(actions.lv20n_ip_address?.name).toBe('Camera control: Network IP address')
 	})
 
 	test('uses neutral labels for parameters shared by opposite directions', () => {
@@ -32,7 +32,7 @@ describe('LV20N catalog actions', () => {
 	})
 
 	test('sends the selected command with supplied parameters', async () => {
-		const { instance, sendCommand } = mockInstance()
+		const { instance, sendCommandAndRefresh } = mockInstance()
 		const action = lv20nCatalogActions(instance).lv20n_zoom
 
 		await action.callback(
@@ -46,8 +46,9 @@ describe('LV20N catalog actions', () => {
 			{} as never,
 		)
 
-		expect(sendCommand).toHaveBeenCalledOnce()
-		const command = sendCommand.mock.calls[0][0]
+		expect(sendCommandAndRefresh).toHaveBeenCalledOnce()
+		expect(sendCommandAndRefresh.mock.calls[0][0]).toBe('zoom')
+		const command = sendCommandAndRefresh.mock.calls[0][1]
 		expect(command.toBytes({})).toStrictEqual([0x81, 0x01, 0x04, 0x47, 0x04, 0x00, 0x00, 0x00, 0xff])
 	})
 })

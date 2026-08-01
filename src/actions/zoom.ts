@@ -29,7 +29,7 @@ export function zoomActions(instance: AvkansLv20nInstance): ActionDefinitions<Zo
 			name: 'Zoom Stop',
 			options: [],
 			callback: async (_event: CompanionActionEvent) => {
-				instance.sendCommand(ZoomStop)
+				await instance.sendCommandAndRefresh('zoom', ZoomStop)
 			},
 		},
 	}

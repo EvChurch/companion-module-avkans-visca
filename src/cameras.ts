@@ -19,6 +19,7 @@ export type CameraPortFactory = (instance: PartialInstance, mode: AvkansLv20nCon
 
 interface CameraManagerHost extends PartialInstance {
 	onStateChanged(): void
+	onCameraStatusChanged(slot: CameraSlot, status: InstanceStatus): void
 }
 
 interface CameraSession {
@@ -119,7 +120,7 @@ export class CameraManager {
 				updateStatus: (status) => {
 					session.status = status
 					this.#updateAggregateStatus()
-					this.#host.onStateChanged()
+					this.#host.onCameraStatusChanged(camera.slot, status)
 				},
 			}
 			const host = this.#host

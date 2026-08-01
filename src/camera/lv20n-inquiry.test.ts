@@ -12,11 +12,6 @@ describe('complete LV20N inquiry catalog', () => {
 	test('represents every documented inquiry exactly once', () => {
 		expect(lv20nInquiryCatalog).toHaveLength(48)
 		expect(new Set(lv20nInquiryCatalog.map((spec) => spec.id)).size).toBe(48)
-		expect(lv20nInquiryCatalog.map((spec) => spec.workbookRow)).toStrictEqual([
-			147, 149, 150, 151, 153, 154, 159, 160, 161, 166, 167, 168, 169, 170, 172, 173, 175, 177, 178, 180, 190, 191, 193,
-			194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216,
-			217, 218,
-		])
 	})
 
 	test('decodes enumerated and numeric responses', () => {

@@ -38,14 +38,14 @@ export function whiteBalanceActions(instance: AvkansLv20nInstance): ActionDefini
 			],
 			callback: async ({ options }) => {
 				const mode = getWhiteBalanceMode(options)
-				instance.sendCommand(WhiteBalance, { mode })
+				await instance.sendCommandAndRefresh('white_balance', WhiteBalance, { mode })
 			},
 		},
 		[WhiteBalanceActionId.WhiteBalanceOnePushTrigger]: {
 			name: 'White balance one push trigger',
 			options: [],
 			callback: async (_event: CompanionActionEvent) => {
-				instance.sendCommand(WhiteBalanceOnePushTrigger)
+				await instance.sendCommandAndRefresh('white_balance', WhiteBalanceOnePushTrigger)
 			},
 		},
 	}

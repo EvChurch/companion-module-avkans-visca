@@ -6,18 +6,26 @@ const power = lv20nInquiryCatalog.find((inquiry) => inquiry.id === 'power')!
 
 test('keeps inquiry results isolated by camera and projects active aliases', () => {
 	const state = new CameraState()
-	const update = state.record(2, power, 'On', [0x90, 0x50, 0x02, 0xff], { value: 'On' })
-	expect(update.scoped.camera_2_lv20n_inquiry_power).toBe('On')
-	expect(state.inquiryResult(1, 'power')).toBeUndefined()
-	expect(state.inquiryResult(2, 'power')).toBe('On')
-	expect(state.activeVariables(2).lv20n_inquiry_power).toBe('On')
-	expect(state.activeVariables(1).lv20n_inquiry_power).toBe('')
+	const update = state.record(2, power, { value: 'On' })
+	if (update === undefined) throw new Error('Expected initial state update')
+	expect(update.scoped.camera_2_power).toBe('On')
+	expect(update.active.camera_active_power).toBe('On')
+	expect(state.value(1, 'power')).toBeUndefined()
+	expect(state.value(2, 'power')).toBe('On')
+	expect(state.activeVariables(2).camera_active_power).toBe('On')
+	expect(state.activeVariables(1).camera_active_power).toBe('')
 })
 
 test('clears cached inquiry state when a slot is assigned to a different host', () => {
 	const state = new CameraState()
-	state.record(1, power, 'On', [0x90, 0x50, 0x02, 0xff], { value: 'On' })
+	state.record(1, power, { value: 'On' })
 	state.clear(1)
-	expect(state.inquiryResult(1, 'power')).toBeUndefined()
-	expect(state.cameraVariables(1).camera_1_lv20n_inquiry_power).toBe('')
+	expect(state.value(1, 'power')).toBeUndefined()
+	expect(state.cameraVariables(1).camera_1_power).toBe('')
+})
+
+test('suppresses updates when a camera returns the same state again', () => {
+	const state = new CameraState()
+	state.record(1, power, { value: 'On' })
+	expect(state.record(1, power, { value: 'On' })).toBeUndefined()
 })

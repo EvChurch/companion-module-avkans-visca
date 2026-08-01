@@ -178,7 +178,7 @@ export function panTiltActions(instance: AvkansLv20nInstance): ActionDefinitions
 					return
 				}
 
-				instance.sendCommand(MoveToAbsolutePanTilt, {
+				await instance.sendCommandAndRefresh('pan_tilt', MoveToAbsolutePanTilt, {
 					panPosition,
 					tiltPosition,
 					panSpeed,
@@ -262,7 +262,7 @@ export function panTiltActions(instance: AvkansLv20nInstance): ActionDefinitions
 			name: 'P/T Home',
 			options: [],
 			callback: async (_event: CompanionActionEvent) => {
-				instance.sendCommand(PanTiltHome)
+				await instance.sendCommandAndRefresh('pan_tilt', PanTiltHome)
 			},
 		},
 		[PanTiltActionId.SetMovementSpeed]: {

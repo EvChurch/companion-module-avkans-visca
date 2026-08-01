@@ -24,13 +24,13 @@ Every camera-facing action has a leading **Camera** choice:
 - **Active Camera** resolves to the selected camera when the action runs.
 - A named camera always routes the action to that camera without changing the active selection.
 
-Use **Select Active Camera**, **Select Next Camera**, or **Select Previous Camera** to change the active camera. Next and Previous skip empty slots and wrap around. Before a switch, the module attempts to stop pan/tilt, zoom, and focus on the old camera; a failed or unavailable old camera is logged but does not block the selection.
+Use **Select active camera**, **Select next camera**, or **Select previous camera** to change the active camera. Next and Previous skip empty slots and wrap around. Before a switch, the module attempts to stop pan/tilt, zoom, and focus on the old camera; a failed or unavailable old camera is logged but does not block the selection.
 
 Version 1.2 replaces the prior single-camera configuration. Existing single-camera settings are not migrated. Custom IP addresses and Companion variable-derived camera targets are not supported in this version.
 
 ## Complete LV20N command coverage
 
-The built-in **LV20N:** actions cover all 138 set-command variants in the supplied LV20N VISCA workbook:
+The built-in **Camera control:** actions cover all 138 supported camera-control commands:
 
 - Address setting and power
 - Standard, variable, direct, and digital zoom
@@ -46,23 +46,25 @@ The built-in **LV20N:** actions cover all 138 set-command variants in the suppli
 - DHCP, IP address, subnet mask, gateway, and apply-network-settings controls
 - Factory reset, system menu, and tally-light modes
 
-The original convenience actions and button presets remain available for existing Companion configurations. The comprehensive actions are prefixed **LV20N:** and group related command variants into a searchable action with appropriate choices and value ranges.
+The original convenience actions and button presets remain available. The comprehensive actions are prefixed **Camera control:** and group related command variants into searchable actions with clear choices and value ranges.
 
-## Inquiries, variables, and feedbacks
+## Camera state, variables, and feedbacks
 
-Every one of the 48 documented inquiries is available as an **LV20N Inquiry:** action. Running one updates:
+When a camera connects, the module automatically reads the 45 state values verified on LV20N firmware V1.1.36. Connected cameras are refreshed every 30 seconds, with each camera's queries kept sequential so polling cycles cannot overlap or overload its VISCA socket. Controls with known state effects also refresh their related values as soon as the command completes. This keeps power, operating modes, positions, image settings, network information, and firmware details current whether a change comes from Companion or another controller.
 
-- A combined variable for that inquiry
-- Separate variables for every decoded field
-- The last inquiry ID, formatted result, and raw hexadecimal response
+Variable names are designed for button text and expressions:
 
-These values are stored independently for each camera. The module exposes active-camera variables for slot, name, IP, and connection status, plus per-slot variables for name, IP, status, active state, last inquiry metadata, every formatted inquiry result, and every decoded inquiry field. Inquiry feedbacks also include the same **Active Camera, then configured cameras** target choice. Dedicated **Camera is active** and **Camera is connected** feedbacks support selector and status buttons.
+- Active-camera values use `camera_active_*`, such as `camera_active_name`, `camera_active_power`, and `camera_active_zoom_position`.
+- Fixed-camera values use `camera_1_*` through `camera_4_*`, such as `camera_2_power`.
+- A state value is exposed once. Single-value responses do not create duplicate combined and field variables.
 
-This includes power and operating modes, positions and image values, network addresses and combined ASCII network information, camera version, heartbeat, and both block inquiries. The **LV20N inquiry result** feedback displays a cached result, while **LV20N inquiry result equals** can style a button when the cached result matches expected text. Feedback values update after the corresponding inquiry action runs.
+Feedbacks use direct operator-facing conditions instead of a generic result comparison. Available conditions include **Active camera is**, **Camera is connected**, **Camera: Power is**, **Camera: Focus mode is**, **Camera: White balance mode is**, and the other supported camera modes. Every condition can follow **Active Camera** or target a named camera.
 
-If the camera does not answer a supported inquiry, the module reports a timeout and reconnects. Reconnecting prevents a late raw-TCP reply from being mistaken for the answer to a later inquiry.
+All 48 state queries remain available as **Get camera state:** actions for manual refresh and diagnostics. Three optional aggregate queries—PTZ/focus/iris block, white-balance block, and heartbeat—are not loaded automatically because the tested LV20N firmware does not answer them.
 
-Changing network settings can disconnect the current Companion connection. Configure DHCP, address, mask, and gateway first, then run **LV20N: Apply network settings**.
+If a camera does not answer a state query, the module times it out and reconnects. Reconnecting prevents a late raw-TCP reply from being mistaken for a later response.
+
+Changing network settings can disconnect the current Companion connection. Configure DHCP, address, mask, and gateway first, then run **Camera control: Apply network settings**.
 
 ## Custom commands
 

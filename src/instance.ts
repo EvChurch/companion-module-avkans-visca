@@ -19,15 +19,23 @@ import type { Bytes } from './utils/byte.js'
 import { cameraVariableId, getLv20nVariableDefinitions } from './variables.js'
 import {
 	ActiveCameraFeedbackId,
+	CameraStateFeedbackIds,
+	cameraStateFeedbackIdsForInquiry,
 	CameraConnectionFeedbackId,
 	getLv20nFeedbacks,
-	InquiryEqualsFeedbackId,
-	InquiryValueFeedbackId,
 } from './feedbacks.js'
 import { CameraManager } from './cameras.js'
 import { currentCameraSlot } from './actions/camera-target.js'
 import type { Lv20nInquirySpec } from './camera/lv20n-inquiry.js'
 import { CameraState } from './camera-state.js'
+import {
+	automaticallyRefreshedInquiries,
+	CameraStatePoller,
+	CameraStateRefreshCoordinator,
+	inquiriesForCommandGroup,
+	loadCameraState,
+} from './camera-state-loader.js'
+import { lv20nInquiryCatalog } from './camera/lv20n-inquiry-catalog.js'
 
 export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 	/** Configuration dictating the behavior of this instance. */
@@ -43,27 +51,48 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 
 	readonly #cameras = new CameraManager(this)
 	readonly #cameraState = new CameraState()
+	readonly #stateRefreshQueues = new Map<CameraSlot, Promise<void>>()
+	readonly #stateRefreshes = new CameraStateRefreshCoordinator()
+	readonly #statePoller = new CameraStatePoller(async () => {
+		const connectedSlots = this.#cameras
+			.configuredSlots()
+			.filter((slot) => this.#cameras.status(slot) === InstanceStatus.Ok)
+		await Promise.all(connectedSlots.map(async (slot) => this.refreshCameraState(slot)))
+	})
+	#destroyed = false
 
-	recordLv20nInquiryResult(
-		inquiry: Lv20nInquirySpec,
-		result: string,
-		response: Bytes,
-		fields: Record<string, string | number>,
-	): void {
+	recordLv20nInquiryResult(inquiry: Lv20nInquirySpec, fields: Record<string, string | number>): void {
 		const slot = this.#targetSlot()
 		if (slot === undefined) return
-		const update = this.#cameraState.record(slot, inquiry, result, response, fields)
+		this.#recordCameraState(slot, inquiry, fields)
+	}
+
+	#recordCameraState(slot: CameraSlot, inquiry: Lv20nInquirySpec, fields: Record<string, string | number>): void {
+		const update = this.#cameraState.record(slot, inquiry, fields)
+		if (update === undefined) return
 		const values = { ...update.scoped }
 		if (slot === this.#cameras.activeSlot) {
 			Object.assign(values, update.active)
 		}
 		this.setVariableValues(values)
-		this.checkFeedbacks(InquiryValueFeedbackId, InquiryEqualsFeedbackId)
+		const feedbackIds = cameraStateFeedbackIdsForInquiry(inquiry.id)
+		if (feedbackIds.length > 0) this.checkFeedbacks(...feedbackIds)
 	}
 
-	lv20nInquiryResult(id: string, target: CameraTarget = 'active'): string | undefined {
+	cameraStateValue(id: string, target: CameraTarget = 'active'): string | undefined {
 		const slot = this.resolveCameraTarget(target)
-		return slot === undefined ? undefined : this.#cameraState.inquiryResult(slot, id)
+		const value = slot === undefined ? undefined : this.#cameraState.value(slot, id)
+		return value === undefined ? undefined : String(value)
+	}
+
+	async refreshCameraState(target: CameraTarget, inquiryId?: string): Promise<void> {
+		const slot = this.resolveCameraTarget(target)
+		if (slot === undefined) return
+		const inquiries =
+			inquiryId === undefined
+				? automaticallyRefreshedInquiries
+				: lv20nInquiryCatalog.filter((inquiry) => inquiry.id === inquiryId)
+		await this.#queueCameraStateRefresh(slot, inquiries)
 	}
 
 	resolveCameraTarget(target: CameraTarget): CameraSlot | undefined {
@@ -94,12 +123,20 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 
 	onStateChanged(): void {
 		this.#refreshCameraVariables()
-		this.checkFeedbacks(
-			ActiveCameraFeedbackId,
-			CameraConnectionFeedbackId,
-			InquiryValueFeedbackId,
-			InquiryEqualsFeedbackId,
-		)
+		this.checkFeedbacks(ActiveCameraFeedbackId, CameraConnectionFeedbackId, ...CameraStateFeedbackIds)
+	}
+
+	onCameraStatusChanged(slot: CameraSlot, status: InstanceStatus): void {
+		this.onStateChanged()
+		if (status !== InstanceStatus.Ok) return
+
+		const version = this.#stateRefreshes.beginAutomatic(slot)
+		if (version === undefined) return
+
+		// A targeted feedback refresh may already be queued while the camera connects.
+		// Queue the full load behind it, but suppress reconnect loops for this same host.
+		const refresh = this.#queueCameraStateRefresh(slot, automaticallyRefreshedInquiries)
+		void refresh.finally(() => this.#stateRefreshes.finishAutomatic(slot, version))
 	}
 
 	#targetSlot(): CameraSlot | undefined {
@@ -124,26 +161,50 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 			? [CommandParamValues<CmdParameters>?]
 			: [CommandParamValues<CmdParameters>]
 	): void {
-		// The selected port waits for its connection before sending.
 		const slot = this.#targetSlot()
 		if (slot === undefined) {
 			this.log('warn', 'No camera is configured for this action')
 			return
 		}
-		this.#cameras.sendCommand(slot, command, ...paramValues).then(
-			(result: void | Error) => {
-				if (typeof result === 'undefined') {
-					return
-				}
+		void this.#sendCommand(slot, command, ...paramValues)
+	}
 
+	async sendCommandAndRefresh<CmdParameters extends CommandParameters>(
+		commandGroupId: string,
+		command: Command<CmdParameters>,
+		...paramValues: CmdParameters extends NoCommandParameters
+			? [CommandParamValues<CmdParameters>?]
+			: [CommandParamValues<CmdParameters>]
+	): Promise<void> {
+		const slot = this.#targetSlot()
+		if (slot === undefined) {
+			this.log('warn', 'No camera is configured for this action')
+			return
+		}
+		const inquiries = inquiriesForCommandGroup(commandGroupId)
+		if ((await this.#sendCommand(slot, command, ...paramValues)) && inquiries.length > 0) {
+			await this.#queueCameraStateRefresh(slot, inquiries)
+		}
+	}
+
+	async #sendCommand<CmdParameters extends CommandParameters>(
+		slot: CameraSlot,
+		command: Command<CmdParameters>,
+		...paramValues: CmdParameters extends NoCommandParameters
+			? [CommandParamValues<CmdParameters>?]
+			: [CommandParamValues<CmdParameters>]
+	): Promise<boolean> {
+		try {
+			const result = await this.#cameras.sendCommand(slot, command, ...paramValues)
+			if (result instanceof Error) {
 				this.log('error', `Error processing command: ${result.message}`)
-			},
-			(reason: Error) => {
-				// Swallow the error so that execution gracefully unwinds.
-				this.log('error', `Unhandled command rejection was suppressed: ${reason}`)
-				return
-			},
-		)
+				return false
+			}
+			return true
+		} catch (reason) {
+			this.log('error', `Unhandled command rejection was suppressed: ${reason}`)
+			return false
+		}
 	}
 
 	/**
@@ -238,13 +299,17 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 
 	override async destroy(): Promise<void> {
 		this.log('info', `destroying module: ${this.id}`)
+		this.#destroyed = true
+		this.#statePoller.stop()
+		for (const slot of [1, 2, 3, 4] as const) this.#stateRefreshes.advance(slot)
 		this.#cameras.close()
 	}
 
 	override async init(config: RawConfig): Promise<void> {
 		this.#logConfig(config, 'init()')
 
-		return this.configUpdated(config)
+		await this.configUpdated(config)
+		if (!this.#destroyed) this.#statePoller.start()
 	}
 
 	override async configUpdated(config: RawConfig): Promise<void> {
@@ -254,6 +319,7 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 		this.#config = validateConfig(config)
 		for (const slot of cameraSlotsWithChangedHosts(oldConfig, this.#config)) {
 			this.#cameraState.clear(slot)
+			this.#stateRefreshes.advance(slot)
 		}
 		this.setActionDefinitions(getActions(this))
 		this.setPresetDefinitions(getPresets())
@@ -273,11 +339,30 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 			values[cameraVariableId(slot, 'status')] = this.#cameras.status(slot)
 			values[cameraVariableId(slot, 'active')] = slot === this.#cameras.activeSlot
 		}
-		values.active_camera_slot = active ?? ''
-		values.active_camera_name = active === undefined ? '' : (this.#cameras.name(active) ?? '')
-		values.active_camera_ip = active === undefined ? '' : (this.#cameras.host(active) ?? '')
-		values.active_camera_status = active === undefined ? InstanceStatus.Disconnected : this.#cameras.status(active)
+		values.camera_active_slot = active ?? ''
+		values.camera_active_name = active === undefined ? '' : (this.#cameras.name(active) ?? '')
+		values.camera_active_ip = active === undefined ? '' : (this.#cameras.host(active) ?? '')
+		values.camera_active_status = active === undefined ? InstanceStatus.Disconnected : this.#cameras.status(active)
 		this.setVariableValues(values)
+	}
+
+	async #queueCameraStateRefresh(slot: CameraSlot, inquiries: readonly Lv20nInquirySpec[]): Promise<void> {
+		const version = this.#stateRefreshes.version(slot)
+		const previous = this.#stateRefreshQueues.get(slot) ?? Promise.resolve()
+		const refresh = previous.then(async () => {
+			await loadCameraState(
+				slot,
+				inquiries,
+				async (target, bytes) => this.#cameras.sendRawInquiry(target, bytes),
+				(target, inquiry, fields) => this.#recordCameraState(target, inquiry, fields),
+				() => !this.#destroyed && this.#cameras.has(slot) && this.#stateRefreshes.isCurrent(slot, version),
+			)
+		})
+		this.#stateRefreshQueues.set(slot, refresh)
+		void refresh.finally(() => {
+			if (this.#stateRefreshQueues.get(slot) === refresh) this.#stateRefreshQueues.delete(slot)
+		})
+		return refresh
 	}
 
 	/**

@@ -37,7 +37,7 @@ export function powerActions(instance: AvkansLv20nInstance): ActionDefinitions<P
 			],
 			callback: async ({ options }) => {
 				const state = getPowerState(options)
-				instance.sendCommand(CameraPower, { state })
+				await instance.sendCommandAndRefresh('power', CameraPower, { state })
 			},
 		},
 	}
