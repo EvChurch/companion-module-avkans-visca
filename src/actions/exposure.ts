@@ -137,7 +137,7 @@ export function exposureActions(instance: AvkansLv20nInstance): ActionDefinition
 			],
 			callback: async ({ options }) => {
 				const mode = getExposureMode(options)
-				instance.sendCommand(ExposureMode, { mode })
+				await instance.sendCommandAndRefresh('exposure_mode', ExposureMode, { mode })
 			},
 			learn: async (_event: CompanionActionEvent) => {
 				const opts = await instance.sendInquiry(ExposureModeInquiry)
@@ -151,14 +151,14 @@ export function exposureActions(instance: AvkansLv20nInstance): ActionDefinition
 			name: 'Iris Up',
 			options: [],
 			callback: async (_event: CompanionActionEvent) => {
-				instance.sendCommand(IrisUp)
+				await instance.sendCommandAndRefresh('iris', IrisUp)
 			},
 		},
 		[ExposureActionId.IrisDown]: {
 			name: 'Iris Down',
 			options: [],
 			callback: async (_event: CompanionActionEvent) => {
-				instance.sendCommand(IrisDown)
+				await instance.sendCommandAndRefresh('iris', IrisDown)
 			},
 		},
 		[ExposureActionId.SetIris]: {
@@ -189,21 +189,21 @@ export function exposureActions(instance: AvkansLv20nInstance): ActionDefinition
 			],
 			callback: async ({ options }) => {
 				const setting = getIrisSetting(options)
-				instance.sendCommand(IrisSet, { setting })
+				await instance.sendCommandAndRefresh('iris', IrisSet, { setting })
 			},
 		},
 		[ExposureActionId.ShutterUp]: {
 			name: 'Shutter Up',
 			options: [],
 			callback: async (_event: CompanionActionEvent) => {
-				instance.sendCommand(ShutterUp)
+				await instance.sendCommandAndRefresh('shutter', ShutterUp)
 			},
 		},
 		[ExposureActionId.ShutterDown]: {
 			name: 'Shutter Down',
 			options: [],
 			callback: async (_event: CompanionActionEvent) => {
-				instance.sendCommand(ShutterDown)
+				await instance.sendCommandAndRefresh('shutter', ShutterDown)
 			},
 		},
 		[ExposureActionId.SetShutter]: {
@@ -236,7 +236,7 @@ export function exposureActions(instance: AvkansLv20nInstance): ActionDefinition
 			],
 			callback: async ({ options }) => {
 				const setting = getShutterSetting(options)
-				instance.sendCommand(ShutterSet, { setting })
+				await instance.sendCommandAndRefresh('shutter', ShutterSet, { setting })
 			},
 		},
 	}

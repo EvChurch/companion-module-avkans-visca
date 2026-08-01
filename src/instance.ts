@@ -30,7 +30,9 @@ import type { Lv20nInquirySpec } from './camera/lv20n-inquiry.js'
 import { CameraState } from './camera-state.js'
 import {
 	automaticallyRefreshedInquiries,
+	CameraStatePoller,
 	CameraStateRefreshCoordinator,
+	inquiriesForCommandGroup,
 	loadCameraState,
 } from './camera-state-loader.js'
 import { lv20nInquiryCatalog } from './camera/lv20n-inquiry-catalog.js'
@@ -51,6 +53,12 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 	readonly #cameraState = new CameraState()
 	readonly #stateRefreshQueues = new Map<CameraSlot, Promise<void>>()
 	readonly #stateRefreshes = new CameraStateRefreshCoordinator()
+	readonly #statePoller = new CameraStatePoller(async () => {
+		const connectedSlots = this.#cameras
+			.configuredSlots()
+			.filter((slot) => this.#cameras.status(slot) === InstanceStatus.Ok)
+		await Promise.all(connectedSlots.map(async (slot) => this.refreshCameraState(slot)))
+	})
 	#destroyed = false
 
 	recordLv20nInquiryResult(inquiry: Lv20nInquirySpec, fields: Record<string, string | number>): void {
@@ -153,26 +161,50 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 			? [CommandParamValues<CmdParameters>?]
 			: [CommandParamValues<CmdParameters>]
 	): void {
-		// The selected port waits for its connection before sending.
 		const slot = this.#targetSlot()
 		if (slot === undefined) {
 			this.log('warn', 'No camera is configured for this action')
 			return
 		}
-		this.#cameras.sendCommand(slot, command, ...paramValues).then(
-			(result: void | Error) => {
-				if (typeof result === 'undefined') {
-					return
-				}
+		void this.#sendCommand(slot, command, ...paramValues)
+	}
 
+	async sendCommandAndRefresh<CmdParameters extends CommandParameters>(
+		commandGroupId: string,
+		command: Command<CmdParameters>,
+		...paramValues: CmdParameters extends NoCommandParameters
+			? [CommandParamValues<CmdParameters>?]
+			: [CommandParamValues<CmdParameters>]
+	): Promise<void> {
+		const slot = this.#targetSlot()
+		if (slot === undefined) {
+			this.log('warn', 'No camera is configured for this action')
+			return
+		}
+		const inquiries = inquiriesForCommandGroup(commandGroupId)
+		if ((await this.#sendCommand(slot, command, ...paramValues)) && inquiries.length > 0) {
+			await this.#queueCameraStateRefresh(slot, inquiries)
+		}
+	}
+
+	async #sendCommand<CmdParameters extends CommandParameters>(
+		slot: CameraSlot,
+		command: Command<CmdParameters>,
+		...paramValues: CmdParameters extends NoCommandParameters
+			? [CommandParamValues<CmdParameters>?]
+			: [CommandParamValues<CmdParameters>]
+	): Promise<boolean> {
+		try {
+			const result = await this.#cameras.sendCommand(slot, command, ...paramValues)
+			if (result instanceof Error) {
 				this.log('error', `Error processing command: ${result.message}`)
-			},
-			(reason: Error) => {
-				// Swallow the error so that execution gracefully unwinds.
-				this.log('error', `Unhandled command rejection was suppressed: ${reason}`)
-				return
-			},
-		)
+				return false
+			}
+			return true
+		} catch (reason) {
+			this.log('error', `Unhandled command rejection was suppressed: ${reason}`)
+			return false
+		}
 	}
 
 	/**
@@ -268,6 +300,7 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 	override async destroy(): Promise<void> {
 		this.log('info', `destroying module: ${this.id}`)
 		this.#destroyed = true
+		this.#statePoller.stop()
 		for (const slot of [1, 2, 3, 4] as const) this.#stateRefreshes.advance(slot)
 		this.#cameras.close()
 	}
@@ -275,7 +308,8 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 	override async init(config: RawConfig): Promise<void> {
 		this.#logConfig(config, 'init()')
 
-		return this.configUpdated(config)
+		await this.configUpdated(config)
+		if (!this.#destroyed) this.#statePoller.start()
 	}
 
 	override async configUpdated(config: RawConfig): Promise<void> {

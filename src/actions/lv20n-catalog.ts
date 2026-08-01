@@ -106,7 +106,7 @@ export function lv20nCatalogActions(instance: AvkansLv20nInstance): ActionDefini
 				)
 
 				try {
-					instance.sendCommand(createLv20nCommand(command, parameterValues))
+					await instance.sendCommandAndRefresh(group.id, createLv20nCommand(command, parameterValues))
 				} catch (error) {
 					instance.log(
 						'error',

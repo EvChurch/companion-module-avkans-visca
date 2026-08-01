@@ -12,7 +12,7 @@ A Bitfocus Companion module for controlling up to four AVKANS LV20N cameras from
 
 Every camera-facing action starts with a **Camera** dropdown. Choose **Active Camera** for a reusable control surface, or pin the action to a configured camera. Use **Select active camera**, **Select next camera**, and **Select previous camera** to change the active camera. Switching first attempts pan/tilt, zoom, and focus stops on the previous camera, then continues even if that camera is unavailable.
 
-Camera state loads automatically when each camera connects. Active-camera variables use the `camera_active_*` prefix, fixed-camera variables use `camera_1_*` through `camera_4_*`, and feedbacks provide clear conditions such as **Active camera is**, **Camera is connected**, and **Camera: Power is**.
+Camera state loads when each camera connects and refreshes every 30 seconds while connected. Controls with known state effects also refresh their related values as soon as the command completes. Active-camera variables use the `camera_active_*` prefix, fixed-camera variables use `camera_1_*` through `camera_4_*`, and feedbacks provide clear conditions such as **Active camera is**, **Camera is connected**, and **Camera: Power is**.
 
 The module includes all 138 supported control commands and all 48 camera-state queries. Raw VISCA over TCP is the default verified against LV20N firmware V1.1.36. An optional **VISCA over IP framing** transport is available for cameras configured to require the eight-byte network header and sequence number. Custom commands should contain only the raw VISCA command bytes, beginning with `81` and ending with `FF`; the module adds framing when that transport is selected.
 

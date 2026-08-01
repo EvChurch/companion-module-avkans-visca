@@ -48,9 +48,9 @@ export function focusActions(instance: AvkansLv20nInstance): ActionDefinitions<F
 			callback: async ({ options }) => {
 				const mode = getFocusMode(options)
 				if (mode === 'toggle') {
-					instance.sendCommand(FocusModeToggle)
+					await instance.sendCommandAndRefresh('focus', FocusModeToggle)
 				} else {
-					instance.sendCommand(FocusMode, { mode })
+					await instance.sendCommandAndRefresh('focus', FocusMode, { mode })
 				}
 			},
 			learn: async (_event: CompanionActionEvent) => {
@@ -79,7 +79,7 @@ export function focusActions(instance: AvkansLv20nInstance): ActionDefinitions<F
 			name: 'Focus Stop',
 			options: [],
 			callback: async (_event: CompanionActionEvent) => {
-				instance.sendCommand(FocusStop)
+				await instance.sendCommandAndRefresh('focus', FocusStop)
 			},
 		},
 	}

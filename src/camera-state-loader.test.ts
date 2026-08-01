@@ -1,7 +1,10 @@
 import { expect, test, vi } from 'vitest'
+import { lv20nCommandGroups } from './camera/lv20n-command-catalog.js'
 import {
 	automaticallyRefreshedInquiries,
+	CameraStatePoller,
 	CameraStateRefreshCoordinator,
+	inquiriesForCommandGroup,
 	loadCameraState,
 } from './camera-state-loader.js'
 
@@ -48,4 +51,61 @@ test('deduplicates reconnect refreshes without suppressing a changed camera host
 	expect(refreshes.beginAutomatic(1)).toBeUndefined()
 	refreshes.finishAutomatic(1, changedHost!)
 	expect(refreshes.beginAutomatic(1)).toBe(1)
+})
+
+test('maps control groups to the state they change', () => {
+	expect(inquiriesForCommandGroup('power').map((inquiry) => inquiry.id)).toStrictEqual(['power'])
+	expect(inquiriesForCommandGroup('focus').map((inquiry) => inquiry.id)).toStrictEqual(['focus_mode', 'focus_position'])
+	expect(inquiriesForCommandGroup('zoom_focus').map((inquiry) => inquiry.id)).toStrictEqual([
+		'zoom_position',
+		'focus_mode',
+		'focus_position',
+	])
+	expect(inquiriesForCommandGroup('tally')).toStrictEqual([])
+})
+
+test('maps every catalog control with queryable state', () => {
+	const groupsWithoutQueryableState = lv20nCommandGroups
+		.filter((group) => inquiriesForCommandGroup(group.id).length === 0)
+		.map((group) => group.id)
+
+	expect(groupsWithoutQueryableState).toStrictEqual(['address_set', 'system_menu', 'tally'])
+})
+
+test('polls again only after the previous refresh finishes', async () => {
+	vi.useFakeTimers()
+	let finishRefresh: (() => void) | undefined
+	const refresh = vi.fn(
+		async () =>
+			new Promise<void>((resolve) => {
+				finishRefresh = resolve
+			}),
+	)
+	const poller = new CameraStatePoller(refresh, 30_000)
+
+	poller.start()
+	await vi.advanceTimersByTimeAsync(30_000)
+	expect(refresh).toHaveBeenCalledOnce()
+	await vi.advanceTimersByTimeAsync(60_000)
+	expect(refresh).toHaveBeenCalledOnce()
+
+	finishRefresh?.()
+	await vi.advanceTimersByTimeAsync(30_000)
+	expect(refresh).toHaveBeenCalledTimes(2)
+	poller.stop()
+	vi.useRealTimers()
+})
+
+test('continues polling after a failed refresh and stops cleanly', async () => {
+	vi.useFakeTimers()
+	const refresh = vi.fn().mockRejectedValueOnce(new Error('camera disconnected')).mockResolvedValue(undefined)
+	const poller = new CameraStatePoller(refresh, 30_000)
+
+	poller.start()
+	await vi.advanceTimersByTimeAsync(60_000)
+	expect(refresh).toHaveBeenCalledTimes(2)
+	poller.stop()
+	await vi.advanceTimersByTimeAsync(60_000)
+	expect(refresh).toHaveBeenCalledTimes(2)
+	vi.useRealTimers()
 })

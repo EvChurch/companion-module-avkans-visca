@@ -2,20 +2,20 @@ import { describe, expect, test, vi } from 'vitest'
 import type { AvkansLv20nInstance } from '../instance.js'
 import { FocusActionId, FocusModeId, focusActions } from './focus.js'
 
-function mockInstance(): { instance: AvkansLv20nInstance; sendCommand: ReturnType<typeof vi.fn> } {
-	const sendCommand = vi.fn()
+function mockInstance(): { instance: AvkansLv20nInstance; sendCommandAndRefresh: ReturnType<typeof vi.fn> } {
+	const sendCommandAndRefresh = vi.fn()
 	return {
 		instance: {
-			sendCommand,
+			sendCommandAndRefresh,
 			sendInquiry: vi.fn(),
 		} as unknown as AvkansLv20nInstance,
-		sendCommand,
+		sendCommandAndRefresh,
 	}
 }
 
 describe('focus actions', () => {
 	test('offers and sends the focus mode toggle command', async () => {
-		const { instance, sendCommand } = mockInstance()
+		const { instance, sendCommandAndRefresh } = mockInstance()
 		const action = focusActions(instance)[FocusActionId.SelectFocusMode]
 		const mode = action.options.find((option) => option.id === FocusModeId)
 
@@ -34,7 +34,8 @@ describe('focus actions', () => {
 			{} as never,
 		)
 
-		expect(sendCommand).toHaveBeenCalledOnce()
-		expect(sendCommand.mock.calls[0][0].toBytes({})).toStrictEqual([0x81, 0x01, 0x04, 0x38, 0x10, 0xff])
+		expect(sendCommandAndRefresh).toHaveBeenCalledOnce()
+		expect(sendCommandAndRefresh.mock.calls[0][0]).toBe('focus')
+		expect(sendCommandAndRefresh.mock.calls[0][1].toBytes({})).toStrictEqual([0x81, 0x01, 0x04, 0x38, 0x10, 0xff])
 	})
 })

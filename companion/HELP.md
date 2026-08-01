@@ -50,7 +50,7 @@ The original convenience actions and button presets remain available. The compre
 
 ## Camera state, variables, and feedbacks
 
-When a camera connects, the module automatically reads the 45 state values verified on LV20N firmware V1.1.36. This fills power, operating modes, positions, image settings, network information, and firmware details without requiring setup actions.
+When a camera connects, the module automatically reads the 45 state values verified on LV20N firmware V1.1.36. Connected cameras are refreshed every 30 seconds, with each camera's queries kept sequential so polling cycles cannot overlap or overload its VISCA socket. Controls with known state effects also refresh their related values as soon as the command completes. This keeps power, operating modes, positions, image settings, network information, and firmware details current whether a change comes from Companion or another controller.
 
 Variable names are designed for button text and expressions:
 

@@ -8,6 +8,71 @@ const unsupportedAutomaticInquiryIds = new Set(['ptzfi_block', 'white_balance_bl
 export const automaticallyRefreshedInquiries = lv20nInquiryCatalog.filter(
 	(inquiry) => !unsupportedAutomaticInquiryIds.has(inquiry.id),
 )
+const automaticallyRefreshedInquiryById = new Map<string, Lv20nInquirySpec>(
+	automaticallyRefreshedInquiries.map((inquiry) => [inquiry.id, inquiry]),
+)
+
+const inquiryIdsByCommandGroup: Readonly<Record<string, readonly string[]>> = {
+	power: ['power'],
+	zoom: ['zoom_position'],
+	digital_zoom: ['digital_zoom_limit', 'digital_zoom_mode'],
+	focus: ['focus_mode', 'focus_position'],
+	zoom_focus: ['zoom_position', 'focus_mode', 'focus_position'],
+	white_balance: ['white_balance_mode', 'manual_red_gain', 'manual_blue_gain'],
+	exposure_mode: ['exposure_mode', 'shutter_position', 'iris_position', 'gain_position'],
+	shutter: ['shutter_position'],
+	iris: ['iris_position'],
+	gain: ['gain_position'],
+	bright: ['bright_position'],
+	exposure_compensation: ['exposure_compensation_mode', 'exposure_compensation_position'],
+	backlight: ['backlight_mode'],
+	memory: ['pan_tilt_position', 'zoom_position', 'focus_position'],
+	pan_tilt: ['pan_tilt_position'],
+	apply_ip: ['dhcp', 'ip_address', 'ip_mask', 'ip_gateway', 'ip_info'],
+}
+
+export function inquiriesForCommandGroup(groupId: string): readonly Lv20nInquirySpec[] {
+	if (groupId === 'factory_reset') return automaticallyRefreshedInquiries
+	const inquiryIds = inquiryIdsByCommandGroup[groupId] ?? [groupId]
+	return inquiryIds.flatMap((id) => automaticallyRefreshedInquiryById.get(id) ?? [])
+}
+
+export class CameraStatePoller {
+	#timer: NodeJS.Timeout | undefined
+	#active = false
+
+	constructor(
+		readonly refresh: () => Promise<void>,
+		readonly intervalMs = 30_000,
+	) {}
+
+	start(): void {
+		if (this.#active) return
+		this.#active = true
+		this.#schedule()
+	}
+
+	stop(): void {
+		this.#active = false
+		if (this.#timer !== undefined) clearTimeout(this.#timer)
+		this.#timer = undefined
+	}
+
+	#schedule(): void {
+		this.#timer = setTimeout(() => void this.#run(), this.intervalMs)
+	}
+
+	async #run(): Promise<void> {
+		this.#timer = undefined
+		try {
+			await this.refresh()
+		} catch {
+			// A failed cycle must not stop future camera-state refreshes.
+		} finally {
+			if (this.#active) this.#schedule()
+		}
+	}
+}
 
 export class CameraStateRefreshCoordinator {
 	readonly #versions = new Map<CameraSlot, number>()

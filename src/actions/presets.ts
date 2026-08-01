@@ -331,7 +331,7 @@ export function presetActions(instance: AvkansLv20nInstance): ActionDefinitions<
 					return
 				}
 
-				instance.sendCommand(PresetRecall, { preset })
+				await instance.sendCommandAndRefresh('memory', PresetRecall, { preset })
 			},
 		},
 	}
