@@ -1,43 +1,109 @@
 import { InstanceBase, InstanceStatus, type SomeCompanionConfigField } from '@companion-module/base'
 import { getActions } from './actions/actions.js'
 import {
-	canUpdateConfigWithoutRestarting,
 	type RawConfig,
 	getConfigFields,
-	isValidHost,
 	noCameraConfig,
 	type AvkansLv20nConfig,
+	type CameraSlot,
+	type CameraTarget,
+	cameraRoster,
+	cameraSlotsWithChangedHosts,
 	validateConfig,
 } from './config.js'
 import { getPresets } from './presets.js'
 import { repr } from './utils/repr.js'
 import type { Command, CommandParameters, CommandParamValues, NoCommandParameters } from './visca/command.js'
 import type { Answer, AnswerParameters, Inquiry } from './visca/inquiry.js'
-import { VISCAPort } from './visca/port.js'
 import type { Bytes } from './utils/byte.js'
-import { getLv20nVariableDefinitions } from './variables.js'
-import { getLv20nFeedbacks, InquiryEqualsFeedbackId, InquiryValueFeedbackId } from './feedbacks.js'
+import { cameraVariableId, getLv20nVariableDefinitions } from './variables.js'
+import {
+	ActiveCameraFeedbackId,
+	CameraConnectionFeedbackId,
+	getLv20nFeedbacks,
+	InquiryEqualsFeedbackId,
+	InquiryValueFeedbackId,
+} from './feedbacks.js'
+import { CameraManager } from './cameras.js'
+import { currentCameraSlot } from './actions/camera-target.js'
+import type { Lv20nInquirySpec } from './camera/lv20n-inquiry.js'
+import { CameraState } from './camera-state.js'
 
 export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 	/** Configuration dictating the behavior of this instance. */
 	#config: AvkansLv20nConfig = noCameraConfig()
+	get config(): AvkansLv20nConfig {
+		return this.#config
+	}
 
 	/** Whether debug logging is enabled on this instance or not. */
 	get debugLogging(): boolean {
 		return this.#config.debugLogging
 	}
 
-	/** A port to use to communicate with the represented camera. */
-	#visca = new VISCAPort(this, 'raw')
-	#lv20nInquiryResults = new Map<string, string>()
+	readonly #cameras = new CameraManager(this)
+	readonly #cameraState = new CameraState()
 
-	recordLv20nInquiryResult(id: string, result: string): void {
-		this.#lv20nInquiryResults.set(id, result)
+	recordLv20nInquiryResult(
+		inquiry: Lv20nInquirySpec,
+		result: string,
+		response: Bytes,
+		fields: Record<string, string | number>,
+	): void {
+		const slot = this.#targetSlot()
+		if (slot === undefined) return
+		const update = this.#cameraState.record(slot, inquiry, result, response, fields)
+		const values = { ...update.scoped }
+		if (slot === this.#cameras.activeSlot) {
+			Object.assign(values, update.active)
+		}
+		this.setVariableValues(values)
 		this.checkFeedbacks(InquiryValueFeedbackId, InquiryEqualsFeedbackId)
 	}
 
-	lv20nInquiryResult(id: string): string | undefined {
-		return this.#lv20nInquiryResults.get(id)
+	lv20nInquiryResult(id: string, target: CameraTarget = 'active'): string | undefined {
+		const slot = this.resolveCameraTarget(target)
+		return slot === undefined ? undefined : this.#cameraState.inquiryResult(slot, id)
+	}
+
+	resolveCameraTarget(target: CameraTarget): CameraSlot | undefined {
+		return this.#cameras.resolve(target)
+	}
+
+	isCameraActive(target: CameraTarget): boolean {
+		const slot = this.resolveCameraTarget(target)
+		return slot !== undefined && slot === this.#cameras.activeSlot
+	}
+
+	cameraIsConnected(target: CameraTarget): boolean {
+		const slot = this.resolveCameraTarget(target)
+		return slot !== undefined && this.#cameras.status(slot) === InstanceStatus.Ok
+	}
+
+	async selectCamera(slot: CameraSlot): Promise<boolean> {
+		return this.#cameras.select(slot)
+	}
+
+	async selectNextCamera(): Promise<boolean> {
+		return this.#cameras.selectNext()
+	}
+
+	async selectPreviousCamera(): Promise<boolean> {
+		return this.#cameras.selectPrevious()
+	}
+
+	onStateChanged(): void {
+		this.#refreshCameraVariables()
+		this.checkFeedbacks(
+			ActiveCameraFeedbackId,
+			CameraConnectionFeedbackId,
+			InquiryValueFeedbackId,
+			InquiryEqualsFeedbackId,
+		)
+	}
+
+	#targetSlot(): CameraSlot | undefined {
+		return currentCameraSlot() ?? this.#cameras.activeSlot
 	}
 
 	/**
@@ -58,10 +124,13 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 			? [CommandParamValues<CmdParameters>?]
 			: [CommandParamValues<CmdParameters>]
 	): void {
-		// `sendCommand` implicitly waits for the connection to be fully
-		// established, so it's unnecessary to resolve `this.#visca.connect()`
-		// here.
-		this.#visca.sendCommand(command, ...paramValues).then(
+		// The selected port waits for its connection before sending.
+		const slot = this.#targetSlot()
+		if (slot === undefined) {
+			this.log('warn', 'No camera is configured for this action')
+			return
+		}
+		this.#cameras.sendCommand(slot, command, ...paramValues).then(
 			(result: void | Error) => {
 				if (typeof result === 'undefined') {
 					return
@@ -92,10 +161,10 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 	async sendInquiry<Parameters extends AnswerParameters>(
 		inquiry: Inquiry<Parameters>,
 	): Promise<Answer<Parameters> | null> {
-		// `sendInquiry` implicitly waits for the connection to be fully
-		// established, so it's unnecessary to resolve `this.#visca.connect()`
-		// here.
-		return this.#visca.sendInquiry(inquiry).then(
+		// The selected port waits for its connection before sending.
+		const slot = this.#targetSlot()
+		if (slot === undefined) return null
+		return this.#cameras.sendInquiry(slot, inquiry).then(
 			(result: Answer<Parameters> | Error) => {
 				if (result instanceof Error) {
 					this.log('error', `Error processing inquiry: ${result.message}`)
@@ -114,7 +183,9 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 
 	/** Send an LV20N inquiry whose response is decoded by the command catalog. */
 	async sendRawInquiry(inquiryBytes: Bytes): Promise<Bytes | null> {
-		return this.#visca.sendRawInquiry(inquiryBytes).then(
+		const slot = this.#targetSlot()
+		if (slot === undefined) return null
+		return this.#cameras.sendRawInquiry(slot, inquiryBytes).then(
 			(result: Bytes | Error) => {
 				if (result instanceof Error) {
 					this.log('error', `Error processing raw inquiry: ${result.message}`)
@@ -167,16 +238,11 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 
 	override async destroy(): Promise<void> {
 		this.log('info', `destroying module: ${this.id}`)
-		this.#visca.close('Instance is being destroyed', InstanceStatus.Disconnected)
+		this.#cameras.close()
 	}
 
 	override async init(config: RawConfig): Promise<void> {
 		this.#logConfig(config, 'init()')
-
-		this.setActionDefinitions(getActions(this))
-		this.setPresetDefinitions(getPresets())
-		this.setVariableDefinitions(getLv20nVariableDefinitions())
-		this.setFeedbackDefinitions(getLv20nFeedbacks(this))
 
 		return this.configUpdated(config)
 	}
@@ -185,27 +251,33 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 		this.#logConfig(config, 'configUpdated()')
 
 		const oldConfig = this.#config
-
-		validateConfig(config)
-		this.#config = config
-
-		if (canUpdateConfigWithoutRestarting(oldConfig, config)) {
-			return
+		this.#config = validateConfig(config)
+		for (const slot of cameraSlotsWithChangedHosts(oldConfig, this.#config)) {
+			this.#cameraState.clear(slot)
 		}
+		this.setActionDefinitions(getActions(this))
+		this.setPresetDefinitions(getPresets())
+		this.setVariableDefinitions(getLv20nVariableDefinitions())
+		this.setFeedbackDefinitions(getLv20nFeedbacks(this, cameraRoster(this.#config)))
+		this.#cameras.reconcile(this.#config)
+	}
 
-		if (oldConfig.transportMode !== config.transportMode) {
-			this.#visca.close('VISCA transport mode changed', InstanceStatus.Connecting)
-			this.#visca = new VISCAPort(this, config.transportMode)
+	#refreshCameraVariables(): void {
+		const active = this.#cameras.activeSlot
+		const values: Record<string, string | number | boolean> = this.#cameraState.activeVariables(active)
+		for (const slot of [1, 2, 3, 4] as const) {
+			const configured = this.#config.cameras[slot]
+			Object.assign(values, this.#cameraState.cameraVariables(slot))
+			values[cameraVariableId(slot, 'name')] = configured.name
+			values[cameraVariableId(slot, 'ip')] = configured.host
+			values[cameraVariableId(slot, 'status')] = this.#cameras.status(slot)
+			values[cameraVariableId(slot, 'active')] = slot === this.#cameras.activeSlot
 		}
-
-		if (!isValidHost(this.#config.host)) {
-			this.#visca.close('no host specified', InstanceStatus.Disconnected)
-		} else {
-			// Initiate the connection (closing any prior connection), but don't
-			// delay to fully establish it as `await this.#visca.connect()`
-			// would, because network vagaries might make this take a long time.
-			this.#visca.open(this.#config.host, this.#config.port)
-		}
+		values.active_camera_slot = active ?? ''
+		values.active_camera_name = active === undefined ? '' : (this.#cameras.name(active) ?? '')
+		values.active_camera_ip = active === undefined ? '' : (this.#cameras.host(active) ?? '')
+		values.active_camera_status = active === undefined ? InstanceStatus.Disconnected : this.#cameras.status(active)
+		this.setVariableValues(values)
 	}
 
 	/**

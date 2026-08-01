@@ -1,6 +1,6 @@
 # AVKANS LV20N VISCA
 
-This module controls the AVKANS LV20N over a TCP connection using its documented VISCA command set.
+This module controls up to four AVKANS LV20N cameras from one Companion connection using the documented VISCA command set.
 
 ## Camera setup
 
@@ -14,6 +14,19 @@ In the LV20N web interface, open **Control Protocol Config** and configure:
 The port can be changed, but it must match the **VISCA TCP port** configured in Companion. The camera manual requires an unused port between 2 and 65533.
 
 Set **VISCA transport** to **Raw VISCA over TCP** for the standard LV20N configuration. This is the default and was verified against firmware V1.1.36. Select **VISCA over IP framing** only when the camera has been configured to expect the eight-byte VISCA-over-IP header and sequence number.
+
+## Multi-camera control
+
+Configure a name and IP address for each camera slot you use. Empty or invalid IP slots are hidden from action and feedback choices. All cameras share the configured TCP port and transport mode, but each uses an independent connection, so one unavailable camera does not block the others.
+
+Every camera-facing action has a leading **Camera** choice:
+
+- **Active Camera** resolves to the selected camera when the action runs.
+- A named camera always routes the action to that camera without changing the active selection.
+
+Use **Select Active Camera**, **Select Next Camera**, or **Select Previous Camera** to change the active camera. Next and Previous skip empty slots and wrap around. Before a switch, the module attempts to stop pan/tilt, zoom, and focus on the old camera; a failed or unavailable old camera is logged but does not block the selection.
+
+Version 1.2 replaces the prior single-camera configuration. Existing single-camera settings are not migrated. Custom IP addresses and Companion variable-derived camera targets are not supported in this version.
 
 ## Complete LV20N command coverage
 
@@ -42,6 +55,8 @@ Every one of the 48 documented inquiries is available as an **LV20N Inquiry:** a
 - A combined variable for that inquiry
 - Separate variables for every decoded field
 - The last inquiry ID, formatted result, and raw hexadecimal response
+
+These values are stored independently for each camera. The module exposes active-camera variables for slot, name, IP, and connection status, plus per-slot variables for name, IP, status, active state, last inquiry metadata, every formatted inquiry result, and every decoded inquiry field. Inquiry feedbacks also include the same **Active Camera, then configured cameras** target choice. Dedicated **Camera is active** and **Camera is connected** feedbacks support selector and status buttons.
 
 This includes power and operating modes, positions and image values, network addresses and combined ASCII network information, camera version, heartbeat, and both block inquiries. The **LV20N inquiry result** feedback displays a cached result, while **LV20N inquiry result equals** can style a button when the cached result matches expected text. Feedback values update after the corresponding inquiry action runs.
 

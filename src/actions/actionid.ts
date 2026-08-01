@@ -10,6 +10,7 @@ import type { WhiteBalanceActionId } from './white-balance.js'
 import type { ZoomActionId } from './zoom.js'
 import type { Lv20nCatalogActionId } from './lv20n-catalog.js'
 import type { Lv20nInquiryActionId } from './lv20n-inquiries.js'
+import type { CameraSelectionActionId } from './camera-selection.js'
 
 /**
  * A helper type to apply to a complete `CompanionActionDefinitions` for an
@@ -30,3 +31,4 @@ export type AvkansLv20nActionId =
 	| ZoomActionId
 	| Lv20nCatalogActionId
 	| Lv20nInquiryActionId
+	| CameraSelectionActionId

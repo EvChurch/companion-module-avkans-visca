@@ -1,7 +1,7 @@
 ---
 title: Workbook-driven VISCA command catalogs
 date: 2026-08-01
-last_updated: 2026-08-01
+last_updated: 2026-08-02
 category: design-patterns
 module: AVKANS LV20N VISCA
 problem_type: design_pattern
@@ -34,6 +34,8 @@ Separate the implementation into four layers:
 2. **Protocol:** Build parameterized packets and decode inquiry responses independently of the UI. Validate integer ranges, packet envelopes, terminators, and response lengths here.
 3. **Transport:** Add or remove VISCA-over-IP framing in one place. Keep raw VISCA bytes distinct from the IP header, sequence number, and payload length, and make the mode configurable when firmware can expose either form. Model exceptional response shapes such as broadcast address setting and addressed heartbeat replies explicitly. Time out unanswered inquiries and reconnect a raw stream before sending another inquiry, because a late reply could otherwise be assigned to the wrong request.
 4. **Companion surface:** Generate grouped actions, inquiry variables, and feedbacks from the catalogs. Preserve existing action IDs when extending an established module so saved Companion configurations keep working.
+
+When one module instance manages multiple devices, keep protocol state keyed by device and capture the resolved target before awaiting a response. A mutable global target can misattribute overlapping actions or late inquiries. Generate action and feedback target choices from the same ordered roster, and project each device's state into both stable per-device variables and active-device aliases.
 
 Use two complementary coverage checks:
 

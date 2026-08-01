@@ -11,9 +11,12 @@ import { whiteBalanceActions } from './white-balance.js'
 import { zoomActions } from './zoom.js'
 import { lv20nCatalogActions } from './lv20n-catalog.js'
 import { lv20nInquiryActions } from './lv20n-inquiries.js'
+import { cameraRoster } from '../config.js'
+import { cameraSelectionActions } from './camera-selection.js'
+import { targetCameraActions } from './camera-target.js'
 
 export function getActions(instance: AvkansLv20nInstance): ActionDefinitions<AvkansLv20nActionId> {
-	return {
+	const cameraActions = {
 		...customCommandActions(instance),
 		...exposureActions(instance),
 		...focusActions(instance),
@@ -26,4 +29,10 @@ export function getActions(instance: AvkansLv20nInstance): ActionDefinitions<Avk
 		...lv20nCatalogActions(instance),
 		...lv20nInquiryActions(instance),
 	}
+	return {
+		...targetCameraActions(cameraActions, cameraRoster(instance.config), (target) =>
+			instance.resolveCameraTarget(target),
+		),
+		...cameraSelectionActions(instance, cameraRoster(instance.config)),
+	} as ActionDefinitions<AvkansLv20nActionId>
 }

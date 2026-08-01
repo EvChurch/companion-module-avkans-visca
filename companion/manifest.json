@@ -3,7 +3,7 @@
 	"id": "avkans-visca",
 	"name": "AVKANS VISCA",
 	"shortname": "LV20N",
-	"description": "Control the AVKANS LV20N using its documented VISCA over IP protocol",
+	"description": "Control up to four AVKANS LV20N cameras using the documented VISCA protocol",
 	"version": "0.0.0",
 	"license": "MIT",
 	"repository": "git+https://github.com/evchurch/companion-module-avkans-visca.git",

@@ -1,13 +1,16 @@
 # companion-module-avkans-visca
 
-A Bitfocus Companion module for controlling an AVKANS LV20N camera using its complete documented VISCA command system over TCP.
+A Bitfocus Companion module for controlling up to four AVKANS LV20N cameras from one connection using the complete documented VISCA command system over TCP.
 
 ## Getting started
 
 1. In the LV20N web interface, open **Control Protocol Config**.
 2. Enable **Visca Transmission**, select **TCP**, and set **Work Mode** to **Server**.
 3. Set the camera port to `1259`, or choose another unused port and use the same value in Companion.
-4. Add the **AVKANS VISCA** connection in Companion, enter the camera IP and VISCA TCP port, and leave **VISCA transport** set to **Raw VISCA over TCP** for the standard LV20N configuration.
+4. Add the **AVKANS VISCA** connection in Companion and enter a name and IP for each camera you want to control. Leave unused slots blank.
+5. Enter the shared VISCA TCP port and leave **VISCA transport** set to **Raw VISCA over TCP** for the standard LV20N configuration.
+
+Every camera-facing action starts with a **Camera** dropdown. Choose **Active Camera** for a reusable control surface, or pin the action to a configured camera. Use **Select Active Camera**, **Select Next Camera**, and **Select Previous Camera** to change the active camera. Switching first attempts pan/tilt, zoom, and focus stops on the previous camera, then continues even if that camera is unavailable.
 
 The module includes all 138 set-command variants and all 48 inquiries from the supplied LV20N command workbook. Raw VISCA over TCP is the default verified against LV20N firmware V1.1.36. An optional **VISCA over IP framing** transport is available for cameras configured to require the eight-byte network header and sequence number. Custom commands should contain only the raw VISCA command bytes, beginning with `81` and ending with `FF`; the module adds framing when that transport is selected.
 
