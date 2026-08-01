@@ -28,7 +28,7 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 	}
 
 	/** A port to use to communicate with the represented camera. */
-	#visca = new VISCAPort(this)
+	#visca = new VISCAPort(this, 'raw')
 	#lv20nInquiryResults = new Map<string, string>()
 
 	recordLv20nInquiryResult(id: string, result: string): void {
@@ -191,6 +191,11 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 
 		if (canUpdateConfigWithoutRestarting(oldConfig, config)) {
 			return
+		}
+
+		if (oldConfig.transportMode !== config.transportMode) {
+			this.#visca.close('VISCA transport mode changed', InstanceStatus.Connecting)
+			this.#visca = new VISCAPort(this, config.transportMode)
 		}
 
 		if (!isValidHost(this.#config.host)) {

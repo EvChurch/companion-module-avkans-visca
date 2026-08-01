@@ -6,7 +6,7 @@ import type {
 } from '@companion-module/base'
 import { tryUpdateCustomCommandsWithCommandParamOptions } from './actions/custom-command.js'
 import { tryUpdatePresetAndSpeedEncodingsInActions, tryUpdateRecallSetPresetActions } from './actions/presets.js'
-import { type RawConfig, tryUpdateConfigWithDebugLogging } from './config.js'
+import { type RawConfig, tryUpdateConfigWithDebugLogging, tryUpdateConfigWithTransportMode } from './config.js'
 
 function ActionUpdater(
 	tryUpdate: (action: CompanionMigrationAction) => boolean,
@@ -33,6 +33,7 @@ function ConfigUpdater(tryUpdate: (config: RawConfig) => boolean): CompanionStat
 export const UpgradeScripts = [
 	ActionUpdater(tryUpdateCustomCommandsWithCommandParamOptions),
 	ConfigUpdater(tryUpdateConfigWithDebugLogging),
+	ConfigUpdater(tryUpdateConfigWithTransportMode),
 	ActionUpdater(tryUpdateRecallSetPresetActions),
 	ActionUpdater(tryUpdatePresetAndSpeedEncodingsInActions),
 ] satisfies CompanionStaticUpgradeScript<RawConfig>[]

@@ -45,6 +45,16 @@ describe('complete LV20N inquiry catalog', () => {
 			subnet_mask: '255.255.255.0',
 			gateway: '10.0.3.1',
 		})
+
+		const lv20nText = '10.201.0.50:255.255.0.0:10.201.0.1'
+		expect(
+			decodeLv20nInquiry(inquiry('ip_info'), [0x90, 0x50, ...Buffer.from(lv20nText, 'ascii'), 0x08, 0xff]),
+		).toStrictEqual({
+			info: lv20nText,
+			ip_address: '10.201.0.50',
+			subnet_mask: '255.255.0.0',
+			gateway: '10.201.0.1',
+		})
 	})
 
 	test('decodes version and heartbeat responses', () => {

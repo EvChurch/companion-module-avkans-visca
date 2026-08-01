@@ -4,7 +4,7 @@ import type { Command, CommandParameters, CommandParamValues, NoCommandParameter
 import type { AvkansLv20nInstance } from '../instance.js'
 import { checkMessageBytes } from './message.js'
 import type { Answer, AnswerMessage, AnswerParameters, Inquiry } from './inquiry.js'
-import type { Host } from '../config.js'
+import type { Host, TransportMode } from '../config.js'
 import type { Bytes } from '../utils/byte.js'
 import { prettyBytes } from '../utils/pretty.js'
 import { encodeViscaOverIpPacket, type ViscaOverIpMessageType, ViscaOverIpParser } from './visca-over-ip.js'
@@ -17,7 +17,9 @@ const BLAME_MODULE =
 /** The type of a VISCA message sent to a camera. */
 export type MessageType = 'command' | 'inquiry'
 
-export type VISCATransportMode = 'raw' | 'visca-over-ip'
+export type VISCATransportMode = TransportMode
+
+const DefaultInquiryTimeoutMs = 4_000
 
 /**
  * The type of the resolve handler for a pending VISCA message sent to the
@@ -325,7 +327,9 @@ type ConnectionStatus = DisconnectedStatus | ConnectingStatus | ConnectedStatus
  */
 export class VISCAPort {
 	readonly #transportMode: VISCATransportMode
+	readonly #inquiryTimeoutMs: number
 	#sequenceNumber = 1
+	#connectionTarget: { host: Host; port: number } | null = null
 	/**
 	 * The TCP socket through which commands are sent and responses received,
 	 * if this port is open.
@@ -400,9 +404,14 @@ export class VISCAPort {
 	 * Create a VISCAPort associated with the provided instance.  The port is
 	 * initially closed and must be opened to be used.
 	 */
-	constructor(instance: PartialInstance, transportMode: VISCATransportMode = 'visca-over-ip') {
+	constructor(
+		instance: PartialInstance,
+		transportMode: VISCATransportMode = 'raw',
+		inquiryTimeoutMs = DefaultInquiryTimeoutMs,
+	) {
 		this.#instance = instance
 		this.#transportMode = transportMode
+		this.#inquiryTimeoutMs = inquiryTimeoutMs
 	}
 
 	/** True iff this port is currently closed. */
@@ -424,6 +433,7 @@ export class VISCAPort {
 	 */
 	close(reason: string, status: InstanceStatus): void {
 		const instance = this.#instance
+		this.#connectionTarget = null
 		let didClose = false
 		if (this.#socket !== null) {
 			didClose = true
@@ -481,6 +491,7 @@ export class VISCAPort {
 	 */
 	open(host: Host, port: number): void {
 		this.close('Socket is being reopened', InstanceStatus.Connecting)
+		this.#connectionTarget = { host, port }
 		this.#sequenceNumber = 1
 
 		const instance = this.#instance
@@ -1199,7 +1210,7 @@ export class VISCAPort {
 			}
 
 			return new Promise((resolve: InquiryResolve<Parameters>, reject: MessageRejectFatally) => {
-				this.#waitingForInitialResponse.push(
+				this.#queueInquiry(
 					new PendingInquiry(messageBytes, isUserDefined, result.sequence, resolve, reject, inquiry.answer()),
 				)
 			})
@@ -1212,9 +1223,28 @@ export class VISCAPort {
 			if (result instanceof Error) return result
 
 			return new Promise((resolve: RawInquiryResolve, reject: MessageRejectFatally) => {
-				this.#waitingForInitialResponse.push(new PendingRawInquiry(inquiryBytes, result.sequence, resolve, reject))
+				this.#queueInquiry(new PendingRawInquiry(inquiryBytes, result.sequence, resolve, reject))
 			})
 		})
+	}
+
+	#queueInquiry<Parameters extends AnswerParameters>(inquiry: PendingInquiry<Parameters> | PendingRawInquiry): void {
+		this.#waitingForInitialResponse.push(inquiry)
+		setTimeout(() => {
+			const index = this.#waitingForInitialResponse.indexOf(inquiry)
+			if (index === -1) return
+
+			this.#waitingForInitialResponse.splice(index, 1)
+			const reason = `Inquiry timed out after ${this.#inquiryTimeoutMs}ms (VISCA bytes ${prettyBytes(inquiry.bytes)})`
+			this.#instance.log('warn', reason)
+			inquiry.nonfatalError(reason)
+
+			// A late response on a raw byte stream could be mistaken for the next
+			// inquiry's response, so reconnect to restore an unambiguous stream.
+			const target = this.#connectionTarget
+			this.close(reason, InstanceStatus.ConnectionFailure)
+			if (target !== null) this.open(target.host, target.port)
+		}, this.#inquiryTimeoutMs)
 	}
 
 	/** Send a message of the given type and bytes. */

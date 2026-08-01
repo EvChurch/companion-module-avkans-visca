@@ -1,6 +1,7 @@
 ---
 title: Workbook-driven VISCA command catalogs
 date: 2026-08-01
+last_updated: 2026-08-01
 category: design-patterns
 module: AVKANS LV20N VISCA
 problem_type: design_pattern
@@ -31,7 +32,7 @@ Separate the implementation into four layers:
 
 1. **Catalog:** Preserve the workbook row number, stable identifier, base bytes, parameters, ranges, and response layout. Generated catalog files should identify their source sheet and row range.
 2. **Protocol:** Build parameterized packets and decode inquiry responses independently of the UI. Validate integer ranges, packet envelopes, terminators, and response lengths here.
-3. **Transport:** Add or remove VISCA-over-IP framing in one place. Keep raw VISCA bytes distinct from the IP header, sequence number, and payload length. Model exceptional response shapes such as broadcast address setting and addressed heartbeat replies explicitly.
+3. **Transport:** Add or remove VISCA-over-IP framing in one place. Keep raw VISCA bytes distinct from the IP header, sequence number, and payload length, and make the mode configurable when firmware can expose either form. Model exceptional response shapes such as broadcast address setting and addressed heartbeat replies explicitly. Time out unanswered inquiries and reconnect a raw stream before sending another inquiry, because a late reply could otherwise be assigned to the wrong request.
 4. **Companion surface:** Generate grouped actions, inquiry variables, and feedbacks from the catalogs. Preserve existing action IDs when extending an established module so saved Companion configurations keep working.
 
 Use two complementary coverage checks:
@@ -56,8 +57,8 @@ Do not use this pattern for a tiny protocol with only a few stable commands; dir
 
 ## Examples
 
-The LV20N catalogs record each source row and use parameter nibble positions rather than embedding UI-specific callbacks in the packet definitions. The test suite then checks the full manifest and exact representative encodings. See `src/camera/lv20n-command-catalog.test.ts`, `src/camera/lv20n-inquiry.test.ts`, and `src/visca/__tests__/port-basics.test.ts`.
+The LV20N catalogs record each source row and use parameter nibble positions rather than embedding UI-specific callbacks in the packet definitions. Live verification against firmware V1.1.36 found raw VISCA on TCP port 1259 even though framed VISCA-over-IP packets timed out, so the module exposes both modes and defaults to raw TCP. See `src/camera/lv20n-command-catalog.test.ts`, `src/camera/lv20n-inquiry.test.ts`, `src/visca/__tests__/inquiry-timeout.test.ts`, and `src/visca/__tests__/port-basics.test.ts`.
 
 ## Related
 
-- PR #1 adds the complete LV20N command and inquiry catalog. It was open and green when this learning was captured.
+- PR #1 added the complete LV20N command and inquiry catalog.
