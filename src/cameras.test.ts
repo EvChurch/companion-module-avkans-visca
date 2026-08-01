@@ -33,6 +33,7 @@ function harness(stopTimeoutMs = 20) {
 		log: vi.fn(),
 		updateStatus: vi.fn(),
 		onStateChanged: vi.fn(),
+		onCameraStatusChanged: vi.fn(),
 	}
 	return { manager: new CameraManager(host, factory, stopTimeoutMs), host, ports, factory }
 }
@@ -52,11 +53,13 @@ describe('CameraManager', () => {
 	})
 
 	test('opens independent sessions and preserves unchanged slots', () => {
-		const { manager, ports, factory } = harness()
+		const { manager, ports, factory, host } = harness()
 		const config = configWith([1, 'Wide', '10.0.0.1'], [2, 'Tight', '10.0.0.2'])
 		manager.reconcile(config)
 		expect(factory).toHaveBeenCalledTimes(2)
 		expect(manager.activeSlot).toBe(1)
+		expect(host.onCameraStatusChanged).toHaveBeenCalledWith(1, InstanceStatus.Ok)
+		expect(host.onCameraStatusChanged).toHaveBeenCalledWith(2, InstanceStatus.Ok)
 
 		const first = ports.get('10.0.0.1')
 		config.cameras[2].host = '10.0.0.22'

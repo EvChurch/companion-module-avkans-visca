@@ -19,7 +19,6 @@ export type Lv20nInquiryDecode =
 	| { readonly kind: 'ip-address' | 'ip-info' | 'version' | 'ptzfi-block' | 'white-balance-block' | 'heartbeat' }
 
 export interface Lv20nInquirySpec {
-	readonly workbookRow: number
 	readonly id: string
 	readonly name: string
 	readonly bytes: Bytes
@@ -155,35 +154,6 @@ export function decodeLv20nInquiry(spec: Lv20nInquirySpec, response: Bytes): Lv2
 		case 'heartbeat':
 			if (response.length !== 4 || response[2] !== 0x01) throw new Error('Invalid LV20N heartbeat response')
 			return { status: 'Alive', device_address: (response[0] >> 4) - 8 }
-	}
-}
-
-export function inquiryFieldIds(spec: Lv20nInquirySpec): readonly string[] {
-	switch (spec.decode.kind) {
-		case 'enum':
-			return ['value']
-		case 'fields':
-			return spec.decode.fields.map((field) => field.id)
-		case 'ip-address':
-			return ['address']
-		case 'ip-info':
-			return ['info', 'ip_address', 'subnet_mask', 'gateway']
-		case 'version':
-			return ['vendor_id', 'model_id', 'version', 'maximum_sockets']
-		case 'ptzfi-block':
-			return ['zoom_position', 'focus_position', 'pan_position', 'tilt_position', 'iris_position']
-		case 'white-balance-block':
-			return [
-				'manual_red_gain',
-				'manual_blue_gain',
-				'white_balance_mode',
-				'automatic_red_gain',
-				'automatic_green_gain',
-				'automatic_blue_gain',
-				'shutter_position',
-			]
-		case 'heartbeat':
-			return ['status', 'device_address']
 	}
 }
 

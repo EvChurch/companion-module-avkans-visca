@@ -182,11 +182,8 @@ export function customCommandActions(instance: AvkansLv20nInstance): ActionDefin
 		[CustomCommandActionId.SendCustomCommand]: {
 			name: 'Custom command',
 			description:
-				'Send a command of custom bytes (with embedded parameters filled ' +
-				'by user-defined expression) to the camera.  The camera must ' +
-				'respond with Completion (with or without a preceding ACK) or ' +
-				'with an error. Refer to the LV20N VISCA command documentation ' +
-				'for command structure details.',
+				'Send raw VISCA command bytes to the selected camera, optionally filling parameter positions from ' +
+				'Companion expressions. Use the LV20N protocol documentation for packet structure and supported values.',
 			options: [
 				{
 					type: 'textinput',

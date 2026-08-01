@@ -22,20 +22,22 @@ export function cameraSelectionActions(
 ): CompanionActionDefinitions {
 	const actions: CompanionActionDefinitions = {
 		[CameraSelectionActionId.Next]: {
-			name: 'Select Next Camera',
+			name: 'Select next camera',
+			description: 'Stop movement on the current camera and activate the next configured camera.',
 			options: [],
 			callback: async () => void (await instance.selectNextCamera()),
 		},
 		[CameraSelectionActionId.Previous]: {
-			name: 'Select Previous Camera',
+			name: 'Select previous camera',
+			description: 'Stop movement on the current camera and activate the previous configured camera.',
 			options: [],
 			callback: async () => void (await instance.selectPreviousCamera()),
 		},
 	}
 	if (roster.length > 0) {
 		actions[CameraSelectionActionId.Select] = {
-			name: 'Select Active Camera',
-			description: 'Safely stop the previous camera and make the selected camera active.',
+			name: 'Select active camera',
+			description: 'Stop movement on the current camera and activate the selected camera.',
 			options: [
 				{
 					type: 'dropdown',

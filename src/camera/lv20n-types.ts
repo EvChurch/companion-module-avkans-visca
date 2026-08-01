@@ -16,14 +16,12 @@ export interface Lv20nCommandParameter {
 }
 
 export interface Lv20nCommandSpec {
-	readonly workbookRow: number
 	readonly id: string
 	readonly groupId: string
 	readonly groupName: string
 	readonly name: string
 	readonly bytes: CommandBytes
 	readonly parameters: readonly Lv20nCommandParameter[]
-	readonly description: string
 }
 
 export interface Lv20nCommandGroup {

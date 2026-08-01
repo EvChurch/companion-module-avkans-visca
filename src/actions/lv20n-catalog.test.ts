@@ -14,12 +14,12 @@ function mockInstance(): { instance: AvkansLv20nInstance; sendCommand: ReturnTyp
 }
 
 describe('LV20N catalog actions', () => {
-	test('registers one searchable action for every workbook command group', () => {
+	test('registers one searchable action for every camera command group', () => {
 		const actions = lv20nCatalogActions(mockInstance().instance)
 		expect(Object.keys(actions)).toHaveLength(46)
-		expect(actions.lv20n_zoom?.name).toBe('LV20N: Zoom')
-		expect(actions.lv20n_tally?.name).toBe('LV20N: Tally light')
-		expect(actions.lv20n_ip_address?.name).toBe('LV20N: Network IP address')
+		expect(actions.lv20n_zoom?.name).toBe('Camera control: Zoom')
+		expect(actions.lv20n_tally?.name).toBe('Camera control: Tally light')
+		expect(actions.lv20n_ip_address?.name).toBe('Camera control: Network IP address')
 	})
 
 	test('uses neutral labels for parameters shared by opposite directions', () => {

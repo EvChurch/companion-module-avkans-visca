@@ -1,11 +1,9 @@
-// Generated from “LV20N visca.xlsx”, sheet “01 Visca”, inquiry rows 147–218.
-// Do not hand-edit inquiry packets; update the workbook extraction generator instead.
+// Complete LV20N VISCA state-query catalog. Keep packet changes synchronized with the camera protocol specification.
 
 import type { Lv20nInquirySpec } from './lv20n-inquiry.js'
 
 export const lv20nInquiryCatalog = [
 	{
-		workbookRow: 147,
 		id: 'power',
 		name: 'Power',
 		bytes: [129, 9, 4, 0, 255],
@@ -24,7 +22,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 149,
 		id: 'zoom_position',
 		name: 'Zoom position',
 		bytes: [129, 9, 4, 71, 255],
@@ -40,7 +37,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 150,
 		id: 'digital_zoom_limit',
 		name: 'Digital zoom limit',
 		bytes: [129, 9, 4, 38, 255],
@@ -56,7 +52,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 151,
 		id: 'focus_mode',
 		name: 'Focus mode',
 		bytes: [129, 9, 4, 56, 255],
@@ -75,7 +70,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 153,
 		id: 'focus_position',
 		name: 'Focus position',
 		bytes: [129, 9, 4, 72, 255],
@@ -91,7 +85,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 154,
 		id: 'white_balance_mode',
 		name: 'White balance mode',
 		bytes: [129, 9, 4, 53, 255],
@@ -122,7 +115,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 159,
 		id: 'manual_red_gain',
 		name: 'Manual red gain',
 		bytes: [129, 9, 4, 67, 255],
@@ -138,7 +130,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 160,
 		id: 'manual_blue_gain',
 		name: 'Manual blue gain',
 		bytes: [129, 9, 4, 68, 255],
@@ -154,7 +145,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 161,
 		id: 'exposure_mode',
 		name: 'Exposure mode',
 		bytes: [129, 9, 4, 57, 255],
@@ -185,7 +175,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 166,
 		id: 'shutter_position',
 		name: 'Shutter position',
 		bytes: [129, 9, 4, 74, 255],
@@ -201,7 +190,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 167,
 		id: 'iris_position',
 		name: 'Iris position',
 		bytes: [129, 9, 4, 75, 255],
@@ -217,7 +205,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 168,
 		id: 'gain_position',
 		name: 'Gain position',
 		bytes: [129, 9, 4, 76, 255],
@@ -233,7 +220,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 169,
 		id: 'bright_position',
 		name: 'Exposure brightness position',
 		bytes: [129, 9, 4, 77, 255],
@@ -249,7 +235,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 170,
 		id: 'exposure_compensation_mode',
 		name: 'Exposure compensation mode',
 		bytes: [129, 9, 4, 62, 255],
@@ -268,7 +253,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 172,
 		id: 'exposure_compensation_position',
 		name: 'Exposure compensation position',
 		bytes: [129, 9, 4, 78, 255],
@@ -284,7 +268,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 173,
 		id: 'digital_zoom_mode',
 		name: 'Digital zoom mode',
 		bytes: [129, 9, 4, 6, 255],
@@ -303,7 +286,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 175,
 		id: 'backlight_mode',
 		name: 'Backlight mode',
 		bytes: [129, 9, 4, 51, 255],
@@ -322,7 +304,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 177,
 		id: 'aperture',
 		name: 'Aperture',
 		bytes: [129, 9, 4, 66, 255],
@@ -338,7 +319,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 178,
 		id: 'ir_receive',
 		name: 'IR receiver',
 		bytes: [129, 9, 6, 8, 255],
@@ -357,7 +337,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 180,
 		id: 'video_system',
 		name: 'Video format',
 		bytes: [129, 9, 6, 35, 255],
@@ -408,7 +387,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 190,
 		id: 'pan_tilt_position',
 		name: 'Pan and tilt position',
 		bytes: [129, 9, 6, 18, 255],
@@ -429,7 +407,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 191,
 		id: 'pan_tilt_max_speed',
 		name: 'Pan and tilt maximum speed',
 		bytes: [129, 9, 6, 17, 255],
@@ -450,7 +427,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 193,
 		id: 'audio_volume',
 		name: 'Audio volume',
 		bytes: [129, 9, 4, 110, 255],
@@ -466,7 +442,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 194,
 		id: 'noise_reduction_2d',
 		name: '2D noise reduction',
 		bytes: [129, 9, 4, 83, 255],
@@ -482,7 +457,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 195,
 		id: 'noise_reduction_3d',
 		name: '3D noise reduction',
 		bytes: [129, 9, 4, 84, 255],
@@ -498,7 +472,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 196,
 		id: 'gamma',
 		name: 'Gamma',
 		bytes: [129, 9, 4, 91, 255],
@@ -514,7 +487,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 197,
 		id: 'wdr',
 		name: 'Wide dynamic range',
 		bytes: [129, 9, 4, 61, 255],
@@ -530,7 +502,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 198,
 		id: 'mirror',
 		name: 'Mirror',
 		bytes: [129, 9, 4, 97, 255],
@@ -556,7 +527,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 199,
 		id: 'flip',
 		name: 'Flip',
 		bytes: [129, 9, 4, 102, 255],
@@ -582,7 +552,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 200,
 		id: 'anti_flicker',
 		name: 'Anti-flicker',
 		bytes: [129, 9, 4, 58, 255],
@@ -612,7 +581,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 201,
 		id: 'sharpness',
 		name: 'Image sharpness',
 		bytes: [129, 9, 14, 36, 64, 255],
@@ -628,7 +596,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 202,
 		id: 'brightness',
 		name: 'Image brightness',
 		bytes: [129, 9, 14, 36, 65, 255],
@@ -644,7 +611,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 203,
 		id: 'contrast',
 		name: 'Image contrast',
 		bytes: [129, 9, 14, 36, 66, 255],
@@ -660,7 +626,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 204,
 		id: 'saturation',
 		name: 'Image saturation',
 		bytes: [129, 9, 14, 36, 67, 255],
@@ -676,7 +641,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 205,
 		id: 'hue',
 		name: 'Image hue',
 		bytes: [129, 9, 14, 36, 68, 255],
@@ -692,7 +656,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 206,
 		id: 'automatic_red_gain',
 		name: 'Automatic red gain',
 		bytes: [129, 9, 14, 36, 70, 255],
@@ -708,7 +671,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 207,
 		id: 'automatic_blue_gain',
 		name: 'Automatic blue gain',
 		bytes: [129, 9, 14, 36, 71, 255],
@@ -724,7 +686,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 208,
 		id: 'automatic_green_gain',
 		name: 'Automatic green gain',
 		bytes: [129, 9, 14, 36, 72, 255],
@@ -740,7 +701,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 209,
 		id: 'white_balance_color_temperature',
 		name: 'White balance color temperature',
 		bytes: [129, 9, 14, 36, 73, 255],
@@ -756,7 +716,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 210,
 		id: 'dhcp',
 		name: 'Network DHCP',
 		bytes: [129, 9, 8, 8, 255],
@@ -782,7 +741,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 211,
 		id: 'ip_address',
 		name: 'Network IP address',
 		bytes: [129, 9, 8, 7, 1, 255],
@@ -791,7 +749,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 212,
 		id: 'ip_mask',
 		name: 'Network subnet mask',
 		bytes: [129, 9, 8, 7, 2, 255],
@@ -800,7 +757,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 213,
 		id: 'ip_gateway',
 		name: 'Network gateway',
 		bytes: [129, 9, 8, 7, 3, 255],
@@ -809,7 +765,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 214,
 		id: 'ip_info',
 		name: 'Combined network information',
 		bytes: [129, 9, 8, 7, 255],
@@ -818,7 +773,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 215,
 		id: 'version',
 		name: 'Camera version',
 		bytes: [129, 9, 0, 2, 255],
@@ -827,7 +781,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 216,
 		id: 'ptzfi_block',
 		name: 'PTZ/focus/iris block',
 		bytes: [129, 9, 4, 16, 0, 255],
@@ -836,7 +789,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 217,
 		id: 'white_balance_block',
 		name: 'White balance/shutter block',
 		bytes: [129, 9, 4, 16, 1, 255],
@@ -845,7 +797,6 @@ export const lv20nInquiryCatalog = [
 		},
 	},
 	{
-		workbookRow: 218,
 		id: 'heartbeat',
 		name: 'Heartbeat',
 		bytes: [136, 9, 1, 1, 255],

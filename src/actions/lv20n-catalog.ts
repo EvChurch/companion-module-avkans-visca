@@ -66,7 +66,7 @@ function groupOptions(group: Lv20nCommandGroup): SomeCompanionActionInputField[]
 			label: 'Command',
 			choices: group.commands.map((command) => ({
 				id: command.id,
-				label: command.description.length > 0 ? `${command.name} — ${command.description}` : command.name,
+				label: command.name,
 			})),
 			default: group.commands[0].id,
 		})
@@ -96,8 +96,8 @@ export function lv20nCatalogActions(instance: AvkansLv20nInstance): ActionDefini
 	for (const group of lv20nCommandGroups) {
 		const actionId: Lv20nCatalogActionId = `lv20n_${group.id}`
 		actions[actionId] = {
-			name: `LV20N: ${group.name}`,
-			description: `Commands documented in LV20N VISCA workbook rows ${group.commands[0].workbookRow}–${group.commands.at(-1)?.workbookRow}.`,
+			name: `Camera control: ${group.name}`,
+			description: `Control ${group.name.toLowerCase()} on the selected camera.`,
 			options: groupOptions(group),
 			callback: async ({ options }) => {
 				const command = selectedCommand(group, options)
