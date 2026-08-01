@@ -16,6 +16,11 @@ export interface RawConfig {
 
 /** The id of the debug-logging config option. */
 export const DebugLoggingOptionId = 'debugLogging'
+export const TransportModeOptionId = 'transportMode'
+
+export type TransportMode = 'raw' | 'visca-over-ip'
+
+const DefaultTransportMode: TransportMode = 'raw'
 
 /**
  * A config option was added in 3.0.0 to turn on extra logging to Companion's
@@ -25,6 +30,15 @@ export const DebugLoggingOptionId = 'debugLogging'
 export function tryUpdateConfigWithDebugLogging(config: RawConfig): boolean {
 	if (!(DebugLoggingOptionId in config)) {
 		config[DebugLoggingOptionId] = false
+		return true
+	}
+
+	return false
+}
+
+export function tryUpdateConfigWithTransportMode(config: RawConfig): boolean {
+	if (!(TransportModeOptionId in config)) {
+		config[TransportModeOptionId] = DefaultTransportMode
 		return true
 	}
 
@@ -49,6 +63,17 @@ export function getConfigFields(): SomeCompanionConfigField[] {
 			default: '',
 			regex: Regex.IP,
 			required: true,
+		},
+		{
+			type: 'dropdown',
+			id: TransportModeOptionId,
+			label: 'VISCA transport',
+			width: 6,
+			choices: [
+				{ id: 'raw', label: 'Raw VISCA over TCP (LV20N default)' },
+				{ id: 'visca-over-ip', label: 'VISCA over IP framing' },
+			],
+			default: DefaultTransportMode,
 		},
 		{
 			type: 'textinput',
@@ -77,6 +102,9 @@ export type AvkansLv20nConfig = {
 	/** The TCP/IP port used to connect to the camera. */
 	port: number
 
+	/** How VISCA payloads are framed on the TCP connection. */
+	[TransportModeOptionId]: TransportMode
+
 	/**
 	 * Whether to perform debug logging of extensive details concerning the
 	 * connection: messages sent and received, internal command/inquiry/reply
@@ -94,6 +122,7 @@ export function noCameraConfig(): AvkansLv20nConfig {
 		// Empty host ensures that these options won't trigger a connection.
 		host: '',
 		port: DefaultPort,
+		transportMode: DefaultTransportMode,
 		debugLogging: false,
 	}
 }
@@ -105,6 +134,7 @@ export function noCameraConfig(): AvkansLv20nConfig {
 export function validateConfig(config: RawConfig): asserts config is AvkansLv20nConfig {
 	config.host = toHost(config.host)
 	config.port = toPort(config.port)
+	config[TransportModeOptionId] = toTransportMode(config[TransportModeOptionId])
 	config[DebugLoggingOptionId] = toDebugLogging(config[DebugLoggingOptionId])
 }
 
@@ -144,6 +174,10 @@ function toPort(port: RawConfig['port']): number {
 	return DefaultPort
 }
 
+function toTransportMode(value: RawConfig[typeof TransportModeOptionId]): TransportMode {
+	return value === 'visca-over-ip' ? value : DefaultTransportMode
+}
+
 const toDebugLogging = Boolean
 
 /**
@@ -153,7 +187,11 @@ const toDebugLogging = Boolean
  */
 export function canUpdateConfigWithoutRestarting(oldConfig: AvkansLv20nConfig, newConfig: AvkansLv20nConfig): boolean {
 	// A different host or port straightforwardly requires a connection restart.
-	if (oldConfig.host !== newConfig.host || oldConfig.port !== newConfig.port) {
+	if (
+		oldConfig.host !== newConfig.host ||
+		oldConfig.port !== newConfig.port ||
+		oldConfig.transportMode !== newConfig.transportMode
+	) {
 		return false
 	}
 

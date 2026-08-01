@@ -1,6 +1,6 @@
 # AVKANS LV20N VISCA
 
-This module controls the AVKANS LV20N over a TCP connection using the VISCA over IP packet format documented by AVKANS.
+This module controls the AVKANS LV20N over a TCP connection using its documented VISCA command set.
 
 ## Camera setup
 
@@ -12,6 +12,8 @@ In the LV20N web interface, open **Control Protocol Config** and configure:
 - **Port:** `1259` by default
 
 The port can be changed, but it must match the **VISCA TCP port** configured in Companion. The camera manual requires an unused port between 2 and 65533.
+
+Set **VISCA transport** to **Raw VISCA over TCP** for the standard LV20N configuration. This is the default and was verified against firmware V1.1.36. Select **VISCA over IP framing** only when the camera has been configured to expect the eight-byte VISCA-over-IP header and sequence number.
 
 ## Complete LV20N command coverage
 
@@ -43,6 +45,8 @@ Every one of the 48 documented inquiries is available as an **LV20N Inquiry:** a
 
 This includes power and operating modes, positions and image values, network addresses and combined ASCII network information, camera version, heartbeat, and both block inquiries. The **LV20N inquiry result** feedback displays a cached result, while **LV20N inquiry result equals** can style a button when the cached result matches expected text. Feedback values update after the corresponding inquiry action runs.
 
+If the camera does not answer a supported inquiry, the module reports a timeout and reconnects. Reconnecting prevents a late raw-TCP reply from being mistaken for the answer to a later inquiry.
+
 Changing network settings can disconnect the current Companion connection. Configure DHCP, address, mask, and gateway first, then run **LV20N: Apply network settings**.
 
 ## Custom commands
@@ -51,6 +55,6 @@ Custom commands accept a raw VISCA byte sequence beginning with `81` and ending 
 
 `81 01 08 01 02 FF`
 
-The module adds the LV20N VISCA over IP header, payload length, and sequence number. Do not include the eight-byte network header in the custom command field.
+Do not include an eight-byte network header in the custom command field. The module sends these bytes directly in **Raw VISCA over TCP** mode and adds the payload length, sequence number, and VISCA-over-IP header when that transport is selected.
 
 For the full command table, see the [AVKANS LV20N documentation](https://avkans.com/pages/documents).

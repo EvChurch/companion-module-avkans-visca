@@ -82,7 +82,9 @@ function decodeIpAddress(response: Bytes): Lv20nInquiryResult {
 }
 
 function decodeIpInfo(response: Bytes): Lv20nInquiryResult {
-	const info = Buffer.from(response.slice(2, -1)).toString('ascii')
+	const payload = response.slice(2, -1)
+	while (payload.length > 0 && (payload.at(-1)! < 0x20 || payload.at(-1) === 0x7f)) payload.pop()
+	const info = Buffer.from(payload).toString('ascii')
 	const [ip_address = '', subnet_mask = '', gateway = ''] = info.split(':')
 	return { info, ip_address, subnet_mask, gateway }
 }

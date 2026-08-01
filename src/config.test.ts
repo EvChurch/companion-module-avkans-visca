@@ -1,8 +1,44 @@
 import { describe, expect, test } from 'vitest'
-import { type RawConfig, DebugLoggingOptionId, noCameraConfig, tryUpdateConfigWithDebugLogging } from './config.js'
+import {
+	type RawConfig,
+	DebugLoggingOptionId,
+	TransportModeOptionId,
+	canUpdateConfigWithoutRestarting,
+	noCameraConfig,
+	tryUpdateConfigWithDebugLogging,
+	tryUpdateConfigWithTransportMode,
+	validateConfig,
+} from './config.js'
 
 test('LV20N uses its documented TCP server port by default', () => {
 	expect(noCameraConfig().port).toBe(1259)
+})
+
+describe('LV20N transport configuration', () => {
+	test('defaults new and upgraded configs to raw VISCA over TCP', () => {
+		expect(noCameraConfig().transportMode).toBe('raw')
+
+		const config: RawConfig = { host: '127.0.0.1', port: '1259' }
+		expect(tryUpdateConfigWithTransportMode(config)).toBe(true)
+		expect(config[TransportModeOptionId]).toBe('raw')
+		expect(tryUpdateConfigWithTransportMode(config)).toBe(false)
+	})
+
+	test('accepts VISCA over IP framing when explicitly selected', () => {
+		const config: RawConfig = {
+			host: '127.0.0.1',
+			port: '1259',
+			transportMode: 'visca-over-ip',
+		}
+		validateConfig(config)
+		expect(config.transportMode).toBe('visca-over-ip')
+	})
+
+	test('restarts the connection when transport framing changes', () => {
+		const raw = { ...noCameraConfig(), host: '127.0.0.1' }
+		const framed = { ...raw, transportMode: 'visca-over-ip' as const }
+		expect(canUpdateConfigWithoutRestarting(raw, framed)).toBe(false)
+	})
 })
 
 describe('config upgrade to specify debug logging', () => {
