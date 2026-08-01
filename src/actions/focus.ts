@@ -1,6 +1,6 @@
 import type { CompanionActionEvent } from '@companion-module/base'
 import type { ActionDefinitions } from './actionid.js'
-import { FocusFarStandard, FocusMode, FocusNearStandard, FocusStop } from '../camera/focus.js'
+import { FocusFarStandard, FocusMode, FocusModeToggle, FocusNearStandard, FocusStop } from '../camera/focus.js'
 import { FocusModeInquiry } from '../camera/focus.js'
 import type { AvkansLv20nInstance } from '../instance.js'
 import { optionConversions } from './option-conversion.js'
@@ -14,11 +14,14 @@ export enum FocusActionId {
 
 export const FocusModeId = 'bol'
 
-const [getFocusMode, focusModeToOption] = optionConversions<FocusMode, typeof FocusModeId>(
+type FocusModeSelection = FocusMode | 'toggle'
+
+const [getFocusMode, focusModeToOption] = optionConversions<FocusModeSelection, typeof FocusModeId>(
 	FocusModeId,
 	[
 		['0', 'auto'],
 		['1', 'manual'],
+		['2', 'toggle'],
 	],
 	'auto',
 	'0',
@@ -32,18 +35,23 @@ export function focusActions(instance: AvkansLv20nInstance): ActionDefinitions<F
 			options: [
 				{
 					type: 'dropdown',
-					label: 'Auto/manual focus',
+					label: 'Focus mode',
 					id: FocusModeId,
 					choices: [
 						{ id: '0', label: 'Auto focus' },
 						{ id: '1', label: 'Manual focus' },
+						{ id: '2', label: 'Toggle' },
 					],
 					default: '0',
 				},
 			],
 			callback: async ({ options }) => {
 				const mode = getFocusMode(options)
-				instance.sendCommand(FocusMode, { mode })
+				if (mode === 'toggle') {
+					instance.sendCommand(FocusModeToggle)
+				} else {
+					instance.sendCommand(FocusMode, { mode })
+				}
 			},
 			learn: async (_event: CompanionActionEvent) => {
 				const answer = await instance.sendInquiry(FocusModeInquiry)

@@ -38,6 +38,11 @@ describe('complete LV20N set-command catalog', () => {
 		).toStrictEqual([0x81, 0x01, 0x04, 0x47, 0x01, 0x02, 0x03, 0x04, 0x03, 0x0a, 0x0b, 0x0c, 0xff])
 	})
 
+	test('labels and encodes focus mode toggle', () => {
+		expect(command('r26').name).toBe('Toggle')
+		expect(buildLv20nCommandBytes(command('r26'), {})).toStrictEqual([0x81, 0x01, 0x04, 0x38, 0x10, 0xff])
+	})
+
 	test('encodes absolute and relative pan/tilt packets', () => {
 		expect(
 			buildLv20nCommandBytes(command('r106'), {

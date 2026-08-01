@@ -258,7 +258,7 @@ export const lv20nCommandGroups = [
 				id: 'r26',
 				groupId: 'focus',
 				groupName: 'Focus',
-				name: 'Auto/Manual',
+				name: 'Toggle',
 				bytes: [129, 1, 4, 56, 16, 255],
 				parameters: [],
 			},
