@@ -28,7 +28,9 @@ export enum ExposureActionId {
 
 export const ExposureModeId = 'val'
 
-const [getExposureMode, exposureModeToOption] = optionConversions<ExposureMode, typeof ExposureModeId>(
+type ExposureModeSelection = ExposureMode | 'toggle'
+
+const [getExposureMode, exposureModeToOption] = optionConversions<ExposureModeSelection, typeof ExposureModeId>(
 	ExposureModeId,
 	[
 		['0', 'full-auto'],
@@ -36,6 +38,7 @@ const [getExposureMode, exposureModeToOption] = optionConversions<ExposureMode, 
 		['2', 'shutter-priority'],
 		['3', 'iris-priority'],
 		['4', 'bright-mode-manual'],
+		['5', 'toggle'],
 	],
 	'full-auto',
 	'0',
@@ -131,12 +134,24 @@ export function exposureActions(instance: AvkansLv20nInstance): ActionDefinition
 						{ id: '2', label: 'Shutter Pri' },
 						{ id: '3', label: 'Iris Pri' },
 						{ id: '4', label: 'Bright Mode (manual)' }, // Not in latest API doc: remove?
+						{ id: '5', label: 'Toggle' },
 					],
 					default: '0',
 				},
 			],
 			callback: async ({ options }) => {
-				const mode = getExposureMode(options)
+				const selection = getExposureMode(options)
+				let mode: ExposureMode
+				if (selection === 'toggle') {
+					const current = await instance.sendInquiry(ExposureModeInquiry)
+					if (current === null) {
+						instance.log('warn', 'Unable to read the current exposure mode; toggle was not sent')
+						return
+					}
+					mode = current.mode === 'full-auto' ? 'manual' : 'full-auto'
+				} else {
+					mode = selection
+				}
 				await instance.sendCommandAndRefresh('exposure_mode', ExposureMode, { mode })
 			},
 			learn: async (_event: CompanionActionEvent) => {

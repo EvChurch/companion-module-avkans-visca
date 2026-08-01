@@ -37,7 +37,7 @@ The built-in **Camera control:** actions cover all 138 supported camera-control 
 - Standard, variable, direct, automatic, manual, toggle, and one-push focus
 - Combined direct zoom/focus positioning
 - White-balance modes, color temperature, and manual/automatic RGB gains
-- Exposure mode, gain limit, shutter, iris, gain, brightness, compensation, backlight, and aperture
+- Exposure mode (including Full Auto/Manual toggle), gain limit, shutter, iris, gain, brightness, compensation, backlight, and aperture
 - Preset reset, save, and recall for presets 0 through 64
 - IR receiver and every documented video format
 - Directional, absolute, relative, home, and reset pan/tilt controls
