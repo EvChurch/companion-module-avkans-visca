@@ -15,39 +15,26 @@ export interface RawConfig {
 }
 
 /** The id of the debug-logging config option. */
-export const DebugLoggingOptionId = 'debugLogging'
-export const TransportModeOptionId = 'transportMode'
+const DebugLoggingOptionId = 'debugLogging'
+const TransportModeOptionId = 'transportMode'
 
 export type TransportMode = 'raw' | 'visca-over-ip'
 
+export const CameraSlots = [1, 2, 3, 4] as const
+export type CameraSlot = (typeof CameraSlots)[number]
+export type CameraTarget = 'active' | CameraSlot
+
+export interface ConfiguredCamera {
+	slot: CameraSlot
+	name: string
+	host: Host
+}
+
 const DefaultTransportMode: TransportMode = 'raw'
-
-/**
- * A config option was added in 3.0.0 to turn on extra logging to Companion's
- * logs, to make it easier to debug the module in case of error.  Add a default
- * value for that option to older configs.
- */
-export function tryUpdateConfigWithDebugLogging(config: RawConfig): boolean {
-	if (!(DebugLoggingOptionId in config)) {
-		config[DebugLoggingOptionId] = false
-		return true
-	}
-
-	return false
-}
-
-export function tryUpdateConfigWithTransportMode(config: RawConfig): boolean {
-	if (!(TransportModeOptionId in config)) {
-		config[TransportModeOptionId] = DefaultTransportMode
-		return true
-	}
-
-	return false
-}
 
 /** Compute the config fields list for this module. */
 export function getConfigFields(): SomeCompanionConfigField[] {
-	return [
+	const fields: SomeCompanionConfigField[] = [
 		{
 			type: 'static-text',
 			id: 'info',
@@ -55,15 +42,26 @@ export function getConfigFields(): SomeCompanionConfigField[] {
 			label: 'Information',
 			value: 'Configure the LV20N Control Protocol page for TCP, Server mode, and the same port used below.',
 		},
-		{
-			type: 'textinput',
-			id: 'host',
-			label: 'Camera IP',
-			width: 6,
-			default: '',
-			regex: Regex.IP,
-			required: true,
-		},
+	]
+	for (const slot of CameraSlots) {
+		fields.push(
+			{
+				type: 'textinput',
+				id: `camera${slot}Name`,
+				label: `Camera ${slot} name`,
+				width: 6,
+				default: `Camera ${slot}`,
+			},
+			{
+				type: 'textinput',
+				id: `camera${slot}Host`,
+				label: `Camera ${slot} IP (leave blank to disable)`,
+				width: 6,
+				default: '',
+			},
+		)
+	}
+	fields.push(
 		{
 			type: 'dropdown',
 			id: TransportModeOptionId,
@@ -91,13 +89,13 @@ export function getConfigFields(): SomeCompanionConfigField[] {
 			default: false,
 			width: 6,
 		},
-	]
+	)
+	return fields
 }
 
 /** Validated config information for the camera connection being manipulated. */
 export type AvkansLv20nConfig = {
-	/** The TCP/IP IP address of the camera, or a non-IP address string. */
-	host: string
+	cameras: Record<CameraSlot, { name: string; host: string }>
 
 	/** The TCP/IP port used to connect to the camera. */
 	port: number
@@ -120,7 +118,10 @@ export type AvkansLv20nConfig = {
 export function noCameraConfig(): AvkansLv20nConfig {
 	return {
 		// Empty host ensures that these options won't trigger a connection.
-		host: '',
+		cameras: Object.fromEntries(CameraSlots.map((slot) => [slot, { name: `Camera ${slot}`, host: '' }])) as Record<
+			CameraSlot,
+			{ name: string; host: string }
+		>,
 		port: DefaultPort,
 		transportMode: DefaultTransportMode,
 		debugLogging: false,
@@ -131,11 +132,38 @@ export function noCameraConfig(): AvkansLv20nConfig {
  * Validate `config` as validly-encoded options, massaging options into type
  * conformance as necessary.
  */
-export function validateConfig(config: RawConfig): asserts config is AvkansLv20nConfig {
-	config.host = toHost(config.host)
-	config.port = toPort(config.port)
-	config[TransportModeOptionId] = toTransportMode(config[TransportModeOptionId])
-	config[DebugLoggingOptionId] = toDebugLogging(config[DebugLoggingOptionId])
+export function validateConfig(config: RawConfig): AvkansLv20nConfig {
+	const cameras = Object.fromEntries(
+		CameraSlots.map((slot) => [
+			slot,
+			{
+				name: toCameraName(config[`camera${slot}Name`], slot),
+				host: toHost(config[`camera${slot}Host`]),
+			},
+		]),
+	) as Record<CameraSlot, { name: string; host: string }>
+	return {
+		cameras,
+		port: toPort(config.port),
+		transportMode: toTransportMode(config[TransportModeOptionId]),
+		debugLogging: toDebugLogging(config[DebugLoggingOptionId]),
+	}
+}
+
+function toCameraName(value: InputValue | undefined, slot: CameraSlot): string {
+	const name = value === undefined ? '' : String(value).trim()
+	return name || `Camera ${slot}`
+}
+
+export function cameraRoster(config: AvkansLv20nConfig): ConfiguredCamera[] {
+	return CameraSlots.flatMap((slot) => {
+		const camera = config.cameras[slot]
+		return isValidHost(camera.host) ? [{ slot, name: camera.name, host: camera.host }] : []
+	})
+}
+
+export function cameraSlotsWithChangedHosts(oldConfig: AvkansLv20nConfig, newConfig: AvkansLv20nConfig): CameraSlot[] {
+	return CameraSlots.filter((slot) => oldConfig.cameras[slot].host !== newConfig.cameras[slot].host)
 }
 
 const ipRegExp = new RegExp(Regex.IP.slice(1, -1))
@@ -179,24 +207,3 @@ function toTransportMode(value: RawConfig[typeof TransportModeOptionId]): Transp
 }
 
 const toDebugLogging = Boolean
-
-/**
- * For an already-started instance/connection using the given old config,
- * determine whether applying the new config to it requires restarting the
- * connection.
- */
-export function canUpdateConfigWithoutRestarting(oldConfig: AvkansLv20nConfig, newConfig: AvkansLv20nConfig): boolean {
-	// A different host or port straightforwardly requires a connection restart.
-	if (
-		oldConfig.host !== newConfig.host ||
-		oldConfig.port !== newConfig.port ||
-		oldConfig.transportMode !== newConfig.transportMode
-	) {
-		return false
-	}
-
-	// Debug logging can be turned on or off at runtime without restarting.
-
-	// Otherwise we can update config without restarting.
-	return true
-}
