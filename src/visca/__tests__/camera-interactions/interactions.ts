@@ -27,6 +27,12 @@ type SendCameraInquiry = {
 	readonly id: string
 }
 
+type SendRawCameraInquiry = {
+	readonly type: 'send-raw-camera-inquiry'
+	readonly bytes: Bytes
+	readonly id: string
+}
+
 type CameraIncomingBytes = {
 	readonly type: 'camera-expect-incoming-bytes'
 	readonly bytes: Bytes
@@ -59,6 +65,12 @@ export type ExpectedAnswer = { readonly [key: string]: any }
 type InquirySuccess = {
 	readonly type: 'inquiry-succeeded'
 	readonly answer: ExpectedAnswer
+	readonly id: string
+}
+
+type RawInquirySuccess = {
+	readonly type: 'raw-inquiry-succeeded'
+	readonly bytes: Bytes
 	readonly id: string
 }
 
@@ -108,12 +120,14 @@ type WaitLogMessage = {
 export type Interaction =
 	| SendCameraCommand
 	| SendCameraInquiry
+	| SendRawCameraInquiry
 	| CameraIncomingBytes
 	| CameraReply
 	| CommandSuccess
 	| CommandFailure
 	| CommandFatalFailure
 	| InquirySuccess
+	| RawInquirySuccess
 	| InquiryFailure
 	| InquiryFatalFailure
 	| InstanceStatusCheck
@@ -180,6 +194,10 @@ export function SendInquiry<Parameters extends AnswerParameters>(
 	return { type: 'send-camera-inquiry', inquiry, id }
 }
 
+export function SendRawInquiry(bytes: Bytes, id: string): SendRawCameraInquiry {
+	return { type: 'send-raw-camera-inquiry', bytes, id }
+}
+
 /**
  * Expect the given bytes to have been sent to the camera.  (It's fine if more
  * bytes than these have been sent at this time, as long as these bytes are the
@@ -216,6 +234,10 @@ export function CameraReplyNetworkChange(bytes: readonly [NetworkChangeFirstByte
 /** Make the "camera" reply with the given bytes. */
 export function CameraReplyBytes(bytes: Bytes): CameraReply {
 	return { type: 'camera-reply', bytes }
+}
+
+export function RawInquirySucceeded(bytes: Bytes, id: string): RawInquirySuccess {
+	return { type: 'raw-inquiry-succeeded', bytes, id }
 }
 
 /**

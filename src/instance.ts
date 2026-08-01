@@ -14,6 +14,9 @@ import { repr } from './utils/repr.js'
 import type { Command, CommandParameters, CommandParamValues, NoCommandParameters } from './visca/command.js'
 import type { Answer, AnswerParameters, Inquiry } from './visca/inquiry.js'
 import { VISCAPort } from './visca/port.js'
+import type { Bytes } from './utils/byte.js'
+import { getLv20nVariableDefinitions } from './variables.js'
+import { getLv20nFeedbacks, InquiryEqualsFeedbackId, InquiryValueFeedbackId } from './feedbacks.js'
 
 export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 	/** Configuration dictating the behavior of this instance. */
@@ -26,6 +29,16 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 
 	/** A port to use to communicate with the represented camera. */
 	#visca = new VISCAPort(this)
+	#lv20nInquiryResults = new Map<string, string>()
+
+	recordLv20nInquiryResult(id: string, result: string): void {
+		this.#lv20nInquiryResults.set(id, result)
+		this.checkFeedbacks(InquiryValueFeedbackId, InquiryEqualsFeedbackId)
+	}
+
+	lv20nInquiryResult(id: string): string | undefined {
+		return this.#lv20nInquiryResults.get(id)
+	}
 
 	/**
 	 * Send the given command to the camera, filling in any parameters from the
@@ -99,6 +112,23 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 		)
 	}
 
+	/** Send an LV20N inquiry whose response is decoded by the command catalog. */
+	async sendRawInquiry(inquiryBytes: Bytes): Promise<Bytes | null> {
+		return this.#visca.sendRawInquiry(inquiryBytes).then(
+			(result: Bytes | Error) => {
+				if (result instanceof Error) {
+					this.log('error', `Error processing raw inquiry: ${result.message}`)
+					return null
+				}
+				return result
+			},
+			(reason: Error) => {
+				this.log('error', `Unhandled raw inquiry rejection was suppressed: ${reason}`)
+				return null
+			},
+		)
+	}
+
 	/**
 	 * The speed to be passed in the pan/tilt speed parameters of Pan Tilt Drive
 	 * VISCA commands.  Ranges between 0x01 (low speed) and 0x18 (high speed).
@@ -145,6 +175,8 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 
 		this.setActionDefinitions(getActions(this))
 		this.setPresetDefinitions(getPresets())
+		this.setVariableDefinitions(getLv20nVariableDefinitions())
+		this.setFeedbackDefinitions(getLv20nFeedbacks(this))
 
 		return this.configUpdated(config)
 	}

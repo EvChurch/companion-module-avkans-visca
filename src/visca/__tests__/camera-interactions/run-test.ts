@@ -300,6 +300,7 @@ async function verifyInteractions(
 	try {
 		const sentCommands: Map<string, Promise<void | Error>> = new Map()
 		const sentInquiries: { inquiry: Promise<Answer<AnswerParameters> | Error>; id: string }[] = []
+		const sentRawInquiries: { inquiry: Promise<Bytes | Error>; id: string }[] = []
 
 		for (const interaction of interactions) {
 			LOG(`Processing ${interaction.type} interaction`)
@@ -316,6 +317,11 @@ async function verifyInteractions(
 				case 'send-camera-inquiry': {
 					const { inquiry, id } = interaction
 					sentInquiries.push({ inquiry: clientViscaPort.sendInquiry(inquiry), id })
+					break
+				}
+				case 'send-raw-camera-inquiry': {
+					const { bytes, id } = interaction
+					sentRawInquiries.push({ inquiry: clientViscaPort.sendRawInquiry(bytes), id })
 					break
 				}
 				case 'camera-expect-incoming-bytes': {
@@ -439,6 +445,24 @@ async function verifyInteractions(
 					)
 					break
 				}
+				case 'raw-inquiry-succeeded': {
+					const { bytes: expectedBytes, id } = interaction
+					const inquiryInfo = sentRawInquiries.shift()
+					if (inquiryInfo === undefined) throw new Error('No unexamined raw inquiry to examine')
+					if (id !== inquiryInfo.id) {
+						throw new Error(`Expectation mismatch: expecting ${id} but got ${inquiryInfo.id}`)
+					}
+					await inquiryInfo.inquiry.then((result) => {
+						if (result instanceof Error) throw result
+						if (
+							result.length !== expectedBytes.length ||
+							!result.every((byte, index) => byte === expectedBytes[index])
+						) {
+							throw new Error(`Expected raw inquiry ${prettyBytes(expectedBytes)}, got ${prettyBytes(result)}`)
+						}
+					})
+					break
+				}
 				case 'inquiry-failed': {
 					const { match, id } = interaction
 					const inquiryInfo = sentInquiries.shift()
@@ -545,6 +569,9 @@ async function verifyInteractions(
 
 		if (sentInquiries.length > 0) {
 			throw new Error('Failed to expect a result for every sent inquiry')
+		}
+		if (sentRawInquiries.length > 0) {
+			throw new Error('Failed to expect a result for every sent raw inquiry')
 		}
 		if (sentCommands.size > 0) {
 			throw new Error('Failed to expect a result for every sent command')

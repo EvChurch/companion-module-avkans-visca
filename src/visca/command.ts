@@ -146,13 +146,14 @@ type CommandParams<ParamTypes extends CommandParameters> = {
 	[Param in keyof ParamTypes]: CommandParam<ParamTypes[Param]['convert']>
 }
 
-const CommandInitialByte = 0x81
+const CommandInitialBytes = [0x81, 0x88] as const
+type CommandInitialByte = (typeof CommandInitialBytes)[number]
 
 /**
  * The bytes that constitute some particular command, with all nibbles contained
  * within parameters set to zero.
  */
-type CommandBytes = readonly [typeof CommandInitialByte, ...Bytes, typeof MessageDelimiter]
+export type CommandBytes = readonly [CommandInitialByte, ...Bytes, typeof MessageDelimiter]
 
 /**
  * Command parameters as specified when sending a command, with parameter values
@@ -179,11 +180,11 @@ function validateCommandBytes(bytes: Bytes): asserts bytes is CommandBytes {
 	// it's hard to say what series of sent bytes a camera response indicating a
 	// syntax error (90 60 02 FF) would apply to.
 
-	if (bytes[0] !== CommandInitialByte) {
+	if (!CommandInitialBytes.includes(bytes[0] as CommandInitialByte)) {
 		// VISCA generally says the first byte is 8x, where x encodes the
 		// particular camera to which the command applies when cameras are
 		// connected in series.  But PTZOptics VISCA over TCP forces x=1.
-		throw new RangeError('first byte in command must be 0x81')
+		throw new RangeError('first byte in command must be 0x81 or broadcast address 0x88')
 	}
 
 	const idx = bytes.indexOf(MessageDelimiter, 1)

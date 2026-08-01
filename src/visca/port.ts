@@ -245,6 +245,24 @@ class PendingInquiry<Parameters extends AnswerParameters> extends PendingMessage
 	}
 }
 
+type RawInquiryResolve = (answer: Bytes | Error) => void
+
+class PendingRawInquiry extends PendingMessage {
+	readonly type = 'inquiry'
+	protected readonly resolve: RawInquiryResolve
+
+	constructor(bytes: Bytes, sequence: number | undefined, resolve: RawInquiryResolve, reject: MessageRejectFatally) {
+		super(bytes, false, sequence, reject)
+		this.resolve = resolve
+	}
+
+	succeeded(answer: Bytes): void {
+		this.resolve(answer)
+	}
+}
+
+type PendingInquiryMessage = PendingInquiry<AnswerParameters> | PendingRawInquiry
+
 /**
  * The subset of the `AvkansLv20nInstance` interface used by `VISCAPort` to log
  * messages and update instance connection status.
@@ -694,7 +712,8 @@ export class VISCAPort {
 			//
 			// 0. https://www.sony.net/Products/CameraSystem/CA/BRC_X400_SRG_X400/Technical_Document/E042100111.pdf
 			// 1. https://communication.aver.com/DownloadFile.aspx?n=5174%7C0C0D934C-A84C-423C-A14F-42C5F322C8AD&t=ServiceDownload
-			if ((receivedData[0] & 0b1000_1111) !== 0b1000_0000) {
+			const firstByte = receivedData[0]
+			if (firstByte !== 0x88 && (firstByte & 0b1000_1111) !== 0b1000_0000) {
 				const leadingBytes = receivedData.slice(0, 8)
 				throw this.#errorWhileProcessingMessage(
 					'Camera sent return message data not starting with z0 (where z=8 to F)',
@@ -764,6 +783,21 @@ export class VISCAPort {
 			// command.)
 			const secondByte = returnMessage[1]
 
+			// VISCA address-set broadcast reply. Unlike an ordinary command, this
+			// completes directly without a separate ACK and Completion pair.
+			if (returnMessage.length === 4 && returnMessage[0] === 0x88 && secondByte === 0x30 && returnMessage[2] === 0x02) {
+				const result = this.#findCommandWaitingForInitialResponse(sequence)
+				if (result === undefined || result.pendingCommand.bytes[0] !== 0x88) {
+					throw this.#errorWhileProcessingMessage(
+						'Received address-set response without a pending broadcast',
+						returnMessage,
+					)
+				}
+				this.#waitingForInitialResponse.splice(result.i, 1)
+				result.pendingCommand.succeeded()
+				continue
+			}
+
 			// Network change response (some non-PTZOptics cameras only):
 			//   z0 38 FF (z=8 to F)
 			if (secondByte === 0x38) {
@@ -778,12 +812,17 @@ export class VISCAPort {
 				continue
 			}
 
-			// Some VISCA flavors allow a `z0` initial byte in all return
-			// messages, not just network changes.  We choose to be conservative
-			// in what we accept until someone complains and permit it only in
-			// network change messages.
+			// The LV20N heartbeat may respond from device addresses 1–7. Other
+			// replies retain the established 0x90 requirement so addressed bytes
+			// cannot be misinterpreted as ACKs for ordinary commands.
 			if (returnMessage[0] !== 0x90) {
-				throw this.#errorWhileProcessingMessage('Received return message not starting with 0x90', returnMessage)
+				const addressedRawInquiry =
+					(returnMessage[0] & 0x8f) === 0x80 &&
+					(secondByte & 0xf0) === 0x50 &&
+					this.#findInquiryWaitingForInitialResponse(sequence)?.pendingInquiry instanceof PendingRawInquiry
+				if (!addressedRawInquiry) {
+					throw this.#errorWhileProcessingMessage('Received return message not starting with 0x90', returnMessage)
+				}
 			}
 
 			// ACK (and then later Completion or maybe an error):
@@ -877,6 +916,12 @@ export class VISCAPort {
 					throw this.#errorWhileProcessingMessage('Received inquiry response without a pending inquiry', returnMessage)
 				}
 				const { i, pendingInquiry } = result
+
+				if (pendingInquiry instanceof PendingRawInquiry) {
+					pendingInquiry.succeeded(returnMessage)
+					this.#waitingForInitialResponse.splice(i, 1)
+					continue
+				}
 
 				const expectedReturn = pendingInquiry.expectedReturn
 				if (returnMatches(returnMessage, expectedReturn)) {
@@ -1066,11 +1111,11 @@ export class VISCAPort {
 	 */
 	#findInquiryWaitingForInitialResponse(
 		sequence: number | undefined,
-	): { i: number; pendingInquiry: PendingInquiry<AnswerParameters> } | undefined {
+	): { i: number; pendingInquiry: PendingInquiryMessage } | undefined {
 		for (let i = 0; i < this.#waitingForInitialResponse.length; i++) {
 			const message = this.#waitingForInitialResponse[i]
 			if (message.type === 'inquiry' && (sequence === undefined || message.sequence === sequence)) {
-				return { i, pendingInquiry: message as PendingInquiry<AnswerParameters> }
+				return { i, pendingInquiry: message as PendingInquiryMessage }
 			}
 		}
 
@@ -1157,6 +1202,17 @@ export class VISCAPort {
 				this.#waitingForInitialResponse.push(
 					new PendingInquiry(messageBytes, isUserDefined, result.sequence, resolve, reject, inquiry.answer()),
 				)
+			})
+		})
+	}
+
+	/** Send an LV20N inquiry and return its unparsed VISCA response bytes. */
+	async sendRawInquiry(inquiryBytes: Bytes): Promise<Bytes | Error> {
+		return this.#sendMessage('inquiry', false, inquiryBytes).then(async (result: MessageSent | Error) => {
+			if (result instanceof Error) return result
+
+			return new Promise((resolve: RawInquiryResolve, reject: MessageRejectFatally) => {
+				this.#waitingForInitialResponse.push(new PendingRawInquiry(inquiryBytes, result.sequence, resolve, reject))
 			})
 		})
 	}

@@ -9,6 +9,8 @@ import { powerActions } from './power.js'
 import { presetActions } from './presets.js'
 import { whiteBalanceActions } from './white-balance.js'
 import { zoomActions } from './zoom.js'
+import { lv20nCatalogActions } from './lv20n-catalog.js'
+import { lv20nInquiryActions } from './lv20n-inquiries.js'
 
 export function getActions(instance: AvkansLv20nInstance): ActionDefinitions<AvkansLv20nActionId> {
 	return {
@@ -21,5 +23,7 @@ export function getActions(instance: AvkansLv20nInstance): ActionDefinitions<Avk
 		...presetActions(instance),
 		...whiteBalanceActions(instance),
 		...zoomActions(instance),
+		...lv20nCatalogActions(instance),
+		...lv20nInquiryActions(instance),
 	}
 }
