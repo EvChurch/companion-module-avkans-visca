@@ -18,13 +18,14 @@ import { repr } from './utils/repr.js'
 import type { Command, CommandParameters, CommandParamValues, NoCommandParameters } from './visca/command.js'
 import type { Answer, AnswerParameters, Inquiry } from './visca/inquiry.js'
 import type { Bytes } from './utils/byte.js'
-import { cameraVariableId, getLv20nVariableDefinitions } from './variables.js'
+import { activeCameraVariableId, cameraVariableId, getLv20nVariableDefinitions } from './variables.js'
 import {
 	ActiveCameraFeedbackId,
 	CameraStateFeedbackIds,
 	cameraStateFeedbackIdsForInquiry,
 	CameraConnectionFeedbackId,
 	getLv20nFeedbacks,
+	trackingFeedbackId,
 } from './feedbacks.js'
 import { CameraManager } from './cameras.js'
 import { currentCameraSlot } from './actions/camera-target.js'
@@ -39,6 +40,7 @@ import {
 } from './camera-state-loader.js'
 import { lv20nInquiryCatalog } from './camera/lv20n-inquiry-catalog.js'
 import { CameraWebApi, type PresetRecallSpeeds } from './camera-web-api.js'
+import { mergeTrackingFields, trackingVariableId, type TrackingField, type TrackingValue } from './tracking.js'
 
 export class AvkansLv20nInstance extends InstanceBase<RawConfig, AvkansLv20nSecrets> {
 	/** Configuration dictating the behavior of this instance. */
@@ -55,6 +57,9 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig, AvkansLv20nSecr
 
 	readonly #cameras = new CameraManager(this)
 	readonly #webApis = new Map<CameraSlot, { signature: string; api: CameraWebApi }>()
+	readonly #trackingFieldsByCamera = new Map<CameraSlot, readonly TrackingField[]>()
+	readonly #trackingValues = new Map<CameraSlot, Readonly<Record<string, TrackingValue>>>()
+	#trackingFields: TrackingField[] = []
 	readonly #cameraState = new CameraState()
 	readonly #stateRefreshQueues = new Map<CameraSlot, Promise<void>>()
 	readonly #stateRefreshes = new CameraStateRefreshCoordinator()
@@ -174,6 +179,25 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig, AvkansLv20nSecr
 		await this.#runWebAction(async (api) => api.moveFocus(direction))
 	}
 
+	trackingValue(id: string, target: CameraTarget = 'active'): TrackingValue | undefined {
+		const slot = this.resolveCameraTarget(target)
+		return slot === undefined ? undefined : this.#trackingValues.get(slot)?.[id]
+	}
+
+	async refreshTracking(target: CameraTarget): Promise<void> {
+		const slot = this.resolveCameraTarget(target)
+		if (slot === undefined) return
+		try {
+			await this.#webApi(slot).refreshTracking()
+		} catch (reason) {
+			this.log('warn', `Unable to refresh tracking state for camera ${slot}: ${String(reason)}`)
+		}
+	}
+
+	async setTrackingValue(field: TrackingField, value: TrackingValue): Promise<void> {
+		await this.#runWebAction(async (api) => api.setTrackingValue(field, value))
+	}
+
 	async #runWebAction(callback: (api: CameraWebApi) => Promise<void>, commandGroupId?: string): Promise<void> {
 		const slot = this.#targetSlot()
 		if (slot === undefined) {
@@ -203,7 +227,12 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig, AvkansLv20nSecr
 
 	onStateChanged(): void {
 		this.#refreshCameraVariables()
-		this.checkFeedbacks(ActiveCameraFeedbackId, CameraConnectionFeedbackId, ...CameraStateFeedbackIds)
+		this.checkFeedbacks(
+			ActiveCameraFeedbackId,
+			CameraConnectionFeedbackId,
+			...CameraStateFeedbackIds,
+			...this.#trackingFields.map(({ id }) => trackingFeedbackId(id)),
+		)
 	}
 
 	onCameraStatusChanged(slot: CameraSlot, status: InstanceStatus): void {
@@ -385,6 +414,8 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig, AvkansLv20nSecr
 		this.#cameras.close()
 		for (const session of this.#webApis.values()) session.api.close()
 		this.#webApis.clear()
+		this.#trackingFieldsByCamera.clear()
+		this.#trackingValues.clear()
 	}
 
 	override async init(config: RawConfig, _isFirstInit: boolean, secrets: AvkansLv20nSecrets): Promise<void> {
@@ -404,10 +435,10 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig, AvkansLv20nSecr
 			this.#cameraState.clear(slot)
 			this.#stateRefreshes.advance(slot)
 		}
-		this.setActionDefinitions(getActions(this))
+		this.setActionDefinitions(getActions(this, this.#trackingFields))
 		this.setPresetDefinitions(getPresets())
-		this.setVariableDefinitions(getLv20nVariableDefinitions())
-		this.setFeedbackDefinitions(getLv20nFeedbacks(this, cameraRoster(this.#config)))
+		this.setVariableDefinitions(getLv20nVariableDefinitions(this.#trackingFields))
+		this.setFeedbackDefinitions(getLv20nFeedbacks(this, cameraRoster(this.#config), this.#trackingFields))
 		this.#cameras.reconcile(this.#config)
 		this.#reconcileWebApis()
 	}
@@ -419,6 +450,8 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig, AvkansLv20nSecr
 			if (!wanted.has(slot)) {
 				session.api.close()
 				this.#webApis.delete(slot)
+				this.#trackingFieldsByCamera.delete(slot)
+				this.#trackingValues.delete(slot)
 			}
 		}
 		for (const camera of roster) {
@@ -427,17 +460,43 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig, AvkansLv20nSecr
 			const existing = this.#webApis.get(camera.slot)
 			if (existing?.signature === signature) continue
 			existing?.api.close()
+			this.#trackingFieldsByCamera.delete(camera.slot)
+			this.#trackingValues.delete(camera.slot)
 			const api = new CameraWebApi(
 				camera.host,
 				{ username: camera.username, password },
 				{
 					log: (level, message) => this.log(level, `[Camera ${camera.slot}: ${camera.name}] ${message}`),
 					updateStatus: (status) => this.#cameras.setWebStatus(camera.slot, status),
+					trackingSchemaUpdated: (fields) => this.#updateTrackingSchema(camera.slot, fields),
+					trackingValuesUpdated: (values) => this.#updateTrackingValues(camera.slot, values),
 				},
 			)
 			this.#webApis.set(camera.slot, { signature, api })
 			api.open()
 		}
+		this.#rebuildTrackingDefinitions()
+	}
+
+	#updateTrackingSchema(slot: CameraSlot, fields: readonly TrackingField[]): void {
+		this.#trackingFieldsByCamera.set(slot, fields)
+		this.#rebuildTrackingDefinitions()
+	}
+
+	#rebuildTrackingDefinitions(): void {
+		const merged = mergeTrackingFields(this.#trackingFieldsByCamera.values())
+		if (JSON.stringify(merged) === JSON.stringify(this.#trackingFields)) return
+		this.#trackingFields = merged
+		this.setActionDefinitions(getActions(this, merged))
+		this.setVariableDefinitions(getLv20nVariableDefinitions(merged))
+		this.setFeedbackDefinitions(getLv20nFeedbacks(this, cameraRoster(this.#config), merged))
+		this.#refreshCameraVariables()
+	}
+
+	#updateTrackingValues(slot: CameraSlot, values: Readonly<Record<string, TrackingValue>>): void {
+		this.#trackingValues.set(slot, values)
+		this.#refreshCameraVariables()
+		this.checkFeedbacks(...this.#trackingFields.map(({ id }) => trackingFeedbackId(id)))
 	}
 
 	#refreshCameraVariables(): void {
@@ -450,11 +509,18 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig, AvkansLv20nSecr
 			values[cameraVariableId(slot, 'ip')] = configured.host
 			values[cameraVariableId(slot, 'status')] = this.#cameras.status(slot)
 			values[cameraVariableId(slot, 'active')] = slot === this.#cameras.activeSlot
+			for (const field of this.#trackingFields) {
+				values[cameraVariableId(slot, trackingVariableId(field))] = this.#trackingValues.get(slot)?.[field.id] ?? ''
+			}
 		}
 		values.camera_active_slot = active ?? ''
 		values.camera_active_name = active === undefined ? '' : (this.#cameras.name(active) ?? '')
 		values.camera_active_ip = active === undefined ? '' : (this.#cameras.host(active) ?? '')
 		values.camera_active_status = active === undefined ? InstanceStatus.Disconnected : this.#cameras.status(active)
+		for (const field of this.#trackingFields) {
+			values[activeCameraVariableId(trackingVariableId(field))] =
+				active === undefined ? '' : (this.#trackingValues.get(active)?.[field.id] ?? '')
+		}
 		this.setVariableValues(values)
 	}
 

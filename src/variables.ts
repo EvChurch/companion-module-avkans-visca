@@ -1,6 +1,8 @@
 import type { CompanionVariableDefinition } from '@companion-module/base'
 import { cameraStateValueDefinitions } from './camera-state-values.js'
 import { CameraSlots, type CameraSlot } from './config.js'
+import type { TrackingField } from './tracking.js'
+import { trackingVariableId } from './tracking.js'
 
 export function activeCameraVariableId(id: string): string {
 	return `camera_active_${id}`
@@ -21,7 +23,9 @@ export function activeCameraStateVariableValues(
 	)
 }
 
-export function getLv20nVariableDefinitions(): CompanionVariableDefinition[] {
+export function getLv20nVariableDefinitions(
+	trackingFields: readonly TrackingField[] = [],
+): CompanionVariableDefinition[] {
 	const definitions: CompanionVariableDefinition[] = [
 		{ variableId: activeCameraVariableId('slot'), name: 'Active camera: Slot' },
 		{ variableId: activeCameraVariableId('name'), name: 'Active camera: Name' },
@@ -30,6 +34,10 @@ export function getLv20nVariableDefinitions(): CompanionVariableDefinition[] {
 		...cameraStateValueDefinitions.map((definition) => ({
 			variableId: activeCameraVariableId(definition.id),
 			name: `Active camera: ${definition.label}`,
+		})),
+		...trackingFields.map((field) => ({
+			variableId: activeCameraVariableId(trackingVariableId(field)),
+			name: `Active camera: Tracking ${field.label}`,
 		})),
 	]
 
@@ -40,6 +48,12 @@ export function getLv20nVariableDefinitions(): CompanionVariableDefinition[] {
 			{ variableId: cameraVariableId(slot, 'ip'), name: `${prefix}: IP address` },
 			{ variableId: cameraVariableId(slot, 'status'), name: `${prefix}: Connection status` },
 			{ variableId: cameraVariableId(slot, 'active'), name: `${prefix}: Active` },
+		)
+		definitions.push(
+			...trackingFields.map((field) => ({
+				variableId: cameraVariableId(slot, trackingVariableId(field)),
+				name: `${prefix}: Tracking ${field.label}`,
+			})),
 		)
 		definitions.push(
 			...cameraStateValueDefinitions.map((definition) => ({

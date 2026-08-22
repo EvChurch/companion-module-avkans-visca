@@ -14,6 +14,8 @@ Every camera-facing action starts with a **Camera** dropdown. Choose **Active Ca
 
 Camera state loads when each camera's web authentication and VISCA connection are both ready, and refreshes every 30 seconds while connected. Authentication failures are isolated per camera and retried automatically. Controls with known state effects also refresh their related values as soon as the command completes. Active-camera variables use the `camera_active_*` prefix, fixed-camera variables use `camera_1_*` through `camera_4_*`, and feedbacks provide clear conditions such as **Active camera is**, **Camera is connected**, and **Camera: Power is**.
 
+Auto-tracking controls are discovered from each camera after authentication, so Companion uses the exact choices and ranges supported by its firmware. Tracking actions can follow the active camera or target a named camera. Tracking variables and direct feedbacks refresh every 10 seconds and immediately after a change.
+
 The module includes all 138 supported control commands and all 48 camera-state queries. Pan/tilt movement, zoom, focus, preset storage, and preset-speed configuration use native AVKANS HTTP endpoints. Preset recall and controls without an equivalent endpoint retain VISCA so behavior and custom-command support are not lost. Raw VISCA over TCP is the default verified against LV20N firmware V1.1.36. An optional **VISCA over IP framing** transport is available for cameras configured to require the eight-byte network header and sequence number.
 
 See [companion/HELP.md](./companion/HELP.md) for supported controls and troubleshooting. The source camera documentation is available from the [AVKANS documents page](https://avkans.com/pages/documents).

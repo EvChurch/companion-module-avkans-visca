@@ -3,6 +3,7 @@ import { cameraTargetChoices } from './actions/camera-target.js'
 import { cameraStateValueDefinitions } from './camera-state-values.js'
 import type { CameraTarget, ConfiguredCamera } from './config.js'
 import type { AvkansLv20nInstance } from './instance.js'
+import type { TrackingField } from './tracking.js'
 
 export const ActiveCameraFeedbackId = 'camera_active'
 export const CameraConnectionFeedbackId = 'camera_connected'
@@ -13,6 +14,10 @@ export function cameraStateFeedbackId(id: string): string {
 
 const enumStateDefinitions = cameraStateValueDefinitions.filter((definition) => definition.kind === 'enum')
 export const CameraStateFeedbackIds = enumStateDefinitions.map((definition) => cameraStateFeedbackId(definition.id))
+
+export function trackingFeedbackId(id: string): string {
+	return `camera_tracking_${id}`
+}
 
 export function cameraStateFeedbackIdsForInquiry(inquiryId: string): string[] {
 	return enumStateDefinitions
@@ -28,6 +33,7 @@ function target(options: Record<string, unknown>): CameraTarget {
 export function getLv20nFeedbacks(
 	instance: AvkansLv20nInstance,
 	roster: ConfiguredCamera[],
+	trackingFields: readonly TrackingField[] = [],
 ): CompanionFeedbackDefinitions {
 	const cameraOption = {
 		type: 'dropdown' as const,
@@ -48,7 +54,7 @@ export function getLv20nFeedbacks(
 		[CameraConnectionFeedbackId]: {
 			type: 'boolean',
 			name: 'Camera is connected',
-			description: 'True when the selected camera has an active VISCA connection.',
+			description: 'True when the selected camera has active web API and VISCA connections.',
 			defaultStyle: { color: combineRgb(255, 255, 255), bgcolor: combineRgb(0, 153, 0) },
 			options: [cameraOption],
 			callback: ({ options }) => instance.cameraIsConnected(target(options)),
@@ -74,6 +80,43 @@ export function getLv20nFeedbacks(
 			],
 			callback: ({ options }) => instance.cameraStateValue(definition.id, target(options)) === String(options.expected),
 			subscribe: async ({ options }) => instance.refreshCameraState(target(options), definition.inquiryId),
+		}
+	}
+
+	for (const field of trackingFields) {
+		const id = trackingFeedbackId(field.id)
+		const expectedOption =
+			field.component === 'Slider'
+				? {
+						type: 'number' as const,
+						id: 'expected',
+						label: field.label,
+						default: Number(field.default),
+						min: field.min ?? 0,
+						max: field.max ?? 100,
+						step: field.step ?? 1,
+					}
+				: {
+						type: 'dropdown' as const,
+						id: 'expected',
+						label: field.label,
+						choices:
+							field.component === 'Switch'
+								? [
+										{ id: 0, label: 'Off' },
+										{ id: 1, label: 'On' },
+									]
+								: (field.choices ?? []),
+						default: field.default,
+					}
+		feedbacks[id] = {
+			type: 'boolean',
+			name: `Camera: Tracking ${field.label} is`,
+			description: `True when “${field.label}” on the selected camera matches the chosen value.`,
+			defaultStyle: { color: combineRgb(255, 255, 255), bgcolor: combineRgb(0, 153, 0) },
+			options: [cameraOption, expectedOption],
+			callback: ({ options }) => String(instance.trackingValue(field.id, target(options))) === String(options.expected),
+			subscribe: async ({ options }) => instance.refreshTracking(target(options)),
 		}
 	}
 
