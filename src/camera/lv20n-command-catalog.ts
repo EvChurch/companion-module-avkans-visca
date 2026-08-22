@@ -2,7 +2,7 @@
 
 import type { Lv20nCommandGroup } from './lv20n-types.js'
 
-export const lv20nCommandGroups = [
+export const lv20nDocumentedCommandGroups = [
 	{
 		id: 'address_set',
 		name: 'Address setting',
@@ -2139,3 +2139,27 @@ export const lv20nCommandGroups = [
 		],
 	},
 ] as const satisfies readonly Lv20nCommandGroup[]
+
+// These commands are present in the AVKANS workbook but do not work on LV20N
+// firmware V1.1.36. Bright mode and its controls return VISCA “Not
+// Executable”; tally commands receive no ACK or completion at all. Keep the
+// packets above for protocol traceability, but do not expose non-working
+// actions to Companion users.
+export const UnsupportedLv20nCommandIds = new Set([
+	'r51',
+	'r65',
+	'r66',
+	'r67',
+	'r68',
+	'r138',
+	'r139',
+	'r140',
+	'r141',
+	'r142',
+	'r143',
+])
+
+export const lv20nCommandGroups: readonly Lv20nCommandGroup[] = lv20nDocumentedCommandGroups.flatMap((group) => {
+	const commands = group.commands.filter((command) => !UnsupportedLv20nCommandIds.has(command.id))
+	return commands.length === 0 ? [] : [{ ...group, commands }]
+})

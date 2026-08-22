@@ -37,7 +37,6 @@ const [getExposureMode, exposureModeToOption] = optionConversions<ExposureModeSe
 		['1', 'manual'],
 		['2', 'shutter-priority'],
 		['3', 'iris-priority'],
-		['4', 'bright-mode-manual'],
 		['5', 'toggle'],
 	],
 	'full-auto',
@@ -133,7 +132,6 @@ export function exposureActions(instance: AvkansLv20nInstance): ActionDefinition
 						{ id: '1', label: 'Manual' },
 						{ id: '2', label: 'Shutter Pri' },
 						{ id: '3', label: 'Iris Pri' },
-						{ id: '4', label: 'Bright Mode (manual)' }, // Not in latest API doc: remove?
 						{ id: '5', label: 'Toggle' },
 					],
 					default: '0',

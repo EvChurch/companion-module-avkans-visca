@@ -25,6 +25,7 @@ describe('exposure actions', () => {
 		expect(mode).toMatchObject({
 			choices: expect.arrayContaining([{ id: '5', label: 'Toggle' }]),
 		})
+		if (mode?.type === 'dropdown') expect(mode.choices).not.toContainEqual({ id: '4', label: 'Bright Mode (manual)' })
 
 		await action.callback(
 			{

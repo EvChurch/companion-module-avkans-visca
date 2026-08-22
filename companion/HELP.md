@@ -28,23 +28,29 @@ Use **Select active camera**, **Select next camera**, or **Select previous camer
 
 Version 1.2 replaces the prior single-camera configuration. Existing single-camera settings are not migrated. Custom IP addresses and Companion variable-derived camera targets are not supported in this version.
 
-## Complete LV20N command coverage
+## Live-supported LV20N command coverage
 
-The built-in **Camera control:** actions cover all 138 supported camera-control commands:
+The built-in **Camera control:** actions cover 127 commands supported by LV20N firmware V1.1.36. A live audit completed 106 non-destructive commands on `10.201.0.50`; 21 disruptive or destructive commands retain their workbook-validated packets but were intentionally not executed on the production camera:
 
 - Address setting and power
 - Standard, variable, direct, and digital zoom
 - Standard, variable, direct, automatic, manual, toggle, and one-push focus
 - Combined direct zoom/focus positioning
 - White-balance modes, color temperature, and manual/automatic RGB gains
-- Exposure mode (including Full Auto/Manual toggle), gain limit, shutter, iris, gain, brightness, compensation, backlight, and aperture
+- Exposure mode (including Full Auto/Manual toggle), gain limit, shutter, iris, gain, compensation, backlight, and aperture
 - Preset reset, save, and recall for presets 0 through 64
 - IR receiver and every documented video format
 - Directional, absolute, relative, home, and reset pan/tilt controls
 - Audio volume
 - Sharpness, brightness, contrast, saturation, hue, 2D/3D noise reduction, gamma, WDR, mirror, flip, and anti-flicker
 - DHCP, IP address, subnet mask, gateway, and apply-network-settings controls
-- Factory reset, system menu, and tally-light modes
+- Factory reset and system menu
+
+The AVKANS protocol workbook also lists Bright exposure mode with four brightness controls and six tally-light commands. Firmware V1.1.36 returns **Not Executable** for Bright mode and does not acknowledge tally commands, so those 11 non-working options are intentionally hidden rather than presented as supported actions.
+
+The non-executed commands are power off, address broadcast, preset Set and Reset, ten video-format changes, six network-setting/apply commands, and factory reset. Treat these actions with appropriate operational care.
+
+Some valid commands require a compatible camera mode. Companion shows these requirements in each action description. For example, manual focus movement requires Manual Focus, One Push Trigger requires One Push WB, exposure-compensation amount controls require an automatic or priority exposure mode, and preset recall requires an already stored preset.
 
 The original convenience actions and button presets remain available. The comprehensive actions are prefixed **Camera control:** and group related command variants into searchable actions with clear choices and value ranges. Pan/tilt movement, zoom, focus, preset storage, and **Set Preset Recall Speeds** use native camera endpoints. Preset recall stays on VISCA because the native recall endpoint supplies movement speeds directly and can bypass the camera's stored preset-speed values.
 
