@@ -5,6 +5,7 @@ import {
 	cameraRoster,
 	CameraSlots,
 	noCameraConfig,
+	getConfigFields,
 	validateConfig,
 } from './config.js'
 
@@ -12,11 +13,28 @@ test('defaults to four empty named slots on the LV20N TCP server port', () => {
 	const config = noCameraConfig()
 	expect(config.port).toBe(1259)
 	expect(config.transportMode).toBe('raw')
+	expect(config.cameras[1].username).toBe('admin')
 	expect(CameraSlots.map((slot) => config.cameras[slot])).toEqual([
-		{ name: 'Camera 1', host: '' },
-		{ name: 'Camera 2', host: '' },
-		{ name: 'Camera 3', host: '' },
-		{ name: 'Camera 4', host: '' },
+		{ name: 'Camera 1', host: '', username: 'admin' },
+		{ name: 'Camera 2', host: '', username: 'admin' },
+		{ name: 'Camera 3', host: '', username: 'admin' },
+		{ name: 'Camera 4', host: '', username: 'admin' },
+	])
+})
+
+test('normalizes web usernames independently by camera', () => {
+	const config = validateConfig({ camera1Username: ' operator ', camera2Username: ' ' })
+	expect(config.cameras[1].username).toBe('operator')
+	expect(config.cameras[2].username).toBe('admin')
+})
+
+test('stores a separate secret web password for every camera slot', () => {
+	const secrets = getConfigFields().filter((field) => field.type === 'secret-text')
+	expect(secrets.map(({ id }) => id)).toEqual([
+		'camera1Password',
+		'camera2Password',
+		'camera3Password',
+		'camera4Password',
 	])
 })
 
@@ -57,8 +75,8 @@ describe('camera roster validation', () => {
 		}
 		const validated = validateConfig(config)
 		expect(cameraRoster(validated)).toEqual([
-			{ slot: 1, name: 'Wide', host: '10.0.0.1' },
-			{ slot: 4, name: 'Camera 4', host: '10.0.0.4' },
+			{ slot: 1, name: 'Wide', host: '10.0.0.1', username: 'admin' },
+			{ slot: 4, name: 'Camera 4', host: '10.0.0.4', username: 'admin' },
 		])
 	})
 })

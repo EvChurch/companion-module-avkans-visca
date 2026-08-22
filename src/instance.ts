@@ -10,6 +10,8 @@ import {
 	cameraRoster,
 	cameraSlotsWithChangedHosts,
 	validateConfig,
+	type AvkansLv20nSecrets,
+	cameraWebPasswordOptionId,
 } from './config.js'
 import { getPresets } from './presets.js'
 import { repr } from './utils/repr.js'
@@ -36,10 +38,12 @@ import {
 	loadCameraState,
 } from './camera-state-loader.js'
 import { lv20nInquiryCatalog } from './camera/lv20n-inquiry-catalog.js'
+import { CameraWebApi, type PresetRecallSpeeds } from './camera-web-api.js'
 
-export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
+export class AvkansLv20nInstance extends InstanceBase<RawConfig, AvkansLv20nSecrets> {
 	/** Configuration dictating the behavior of this instance. */
 	#config: AvkansLv20nConfig = noCameraConfig()
+	#secrets: AvkansLv20nSecrets = {}
 	get config(): AvkansLv20nConfig {
 		return this.#config
 	}
@@ -50,6 +54,7 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 	}
 
 	readonly #cameras = new CameraManager(this)
+	readonly #webApis = new Map<CameraSlot, { signature: string; api: CameraWebApi }>()
 	readonly #cameraState = new CameraState()
 	readonly #stateRefreshQueues = new Map<CameraSlot, Promise<void>>()
 	readonly #stateRefreshes = new CameraStateRefreshCoordinator()
@@ -119,6 +124,81 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 
 	async selectPreviousCamera(): Promise<boolean> {
 		return this.#cameras.selectPrevious()
+	}
+
+	async setPresetRecallSpeeds(speeds: PresetRecallSpeeds): Promise<void> {
+		const slot = this.#targetSlot()
+		if (slot === undefined) {
+			this.log('warn', 'No camera is configured for this action')
+			return
+		}
+		try {
+			await this.#webApi(slot).setPresetRecallSpeeds(speeds)
+		} catch (reason) {
+			const camera = this.#config.cameras[slot]
+			this.log(
+				'error',
+				`Failed to set preset recall speeds for ${camera.name} (${camera.host}): ${reason instanceof Error ? reason.message : String(reason)}`,
+			)
+		}
+	}
+
+	async movePanTiltNative(pan: -1 | 0 | 1, tilt: -1 | 0 | 1, panSpeed: number, tiltSpeed: number): Promise<void> {
+		await this.#runWebAction(async (api) => api.movePanTilt(pan, tilt, panSpeed, tiltSpeed))
+	}
+
+	async moveZoomNative(direction: -1 | 0 | 1): Promise<void> {
+		await this.#runWebAction(async (api) => {
+			if (direction === 0) {
+				await api.moveZoom(0, 1)
+				return
+			}
+			const speed = await api.getPtValue('zoom_speed')
+			await api.moveZoom(direction, speed)
+		})
+	}
+
+	async pointNative(method: 'home' | 'set' | 'clear' | 'recall', id: number): Promise<void> {
+		const { panSpeed, tiltSpeed } = this.panTiltSpeed()
+		await this.#runWebAction(
+			async (api) => api.point(method, id, panSpeed, tiltSpeed),
+			method === 'recall' ? 'memory' : method === 'home' ? 'pan_tilt' : undefined,
+		)
+	}
+
+	async setAutoFocusNative(enabled: boolean): Promise<void> {
+		await this.#runWebAction(async (api) => api.setAutoFocus(enabled), 'focus')
+	}
+
+	async moveFocusNative(direction: -1 | 0 | 1): Promise<void> {
+		await this.#runWebAction(async (api) => api.moveFocus(direction))
+	}
+
+	async #runWebAction(callback: (api: CameraWebApi) => Promise<void>, commandGroupId?: string): Promise<void> {
+		const slot = this.#targetSlot()
+		if (slot === undefined) {
+			this.log('warn', 'No camera is configured for this action')
+			return
+		}
+		try {
+			await callback(this.#webApi(slot))
+			if (commandGroupId !== undefined) {
+				const inquiries = inquiriesForCommandGroup(commandGroupId)
+				if (inquiries.length > 0) await this.#queueCameraStateRefresh(slot, inquiries)
+			}
+		} catch (reason) {
+			const camera = this.#config.cameras[slot]
+			this.log(
+				'error',
+				`Camera web action failed for ${camera.name} (${camera.host}): ${reason instanceof Error ? reason.message : String(reason)}`,
+			)
+		}
+	}
+
+	#webApi(slot: CameraSlot): CameraWebApi {
+		const api = this.#webApis.get(slot)?.api
+		if (api === undefined) throw new Error(`Camera ${slot} web API is not configured`)
+		return api
 	}
 
 	onStateChanged(): void {
@@ -303,20 +383,23 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 		this.#statePoller.stop()
 		for (const slot of [1, 2, 3, 4] as const) this.#stateRefreshes.advance(slot)
 		this.#cameras.close()
+		for (const session of this.#webApis.values()) session.api.close()
+		this.#webApis.clear()
 	}
 
-	override async init(config: RawConfig): Promise<void> {
+	override async init(config: RawConfig, _isFirstInit: boolean, secrets: AvkansLv20nSecrets): Promise<void> {
 		this.#logConfig(config, 'init()')
 
-		await this.configUpdated(config)
+		await this.configUpdated(config, secrets)
 		if (!this.#destroyed) this.#statePoller.start()
 	}
 
-	override async configUpdated(config: RawConfig): Promise<void> {
+	override async configUpdated(config: RawConfig, secrets: AvkansLv20nSecrets): Promise<void> {
 		this.#logConfig(config, 'configUpdated()')
 
 		const oldConfig = this.#config
 		this.#config = validateConfig(config)
+		this.#secrets = secrets ?? {}
 		for (const slot of cameraSlotsWithChangedHosts(oldConfig, this.#config)) {
 			this.#cameraState.clear(slot)
 			this.#stateRefreshes.advance(slot)
@@ -326,6 +409,35 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig> {
 		this.setVariableDefinitions(getLv20nVariableDefinitions())
 		this.setFeedbackDefinitions(getLv20nFeedbacks(this, cameraRoster(this.#config)))
 		this.#cameras.reconcile(this.#config)
+		this.#reconcileWebApis()
+	}
+
+	#reconcileWebApis(): void {
+		const roster = cameraRoster(this.#config)
+		const wanted = new Set(roster.map(({ slot }) => slot))
+		for (const [slot, session] of this.#webApis) {
+			if (!wanted.has(slot)) {
+				session.api.close()
+				this.#webApis.delete(slot)
+			}
+		}
+		for (const camera of roster) {
+			const password = this.#secrets[cameraWebPasswordOptionId(camera.slot)] ?? ''
+			const signature = `${camera.host}:${camera.username}:${password}`
+			const existing = this.#webApis.get(camera.slot)
+			if (existing?.signature === signature) continue
+			existing?.api.close()
+			const api = new CameraWebApi(
+				camera.host,
+				{ username: camera.username, password },
+				{
+					log: (level, message) => this.log(level, `[Camera ${camera.slot}: ${camera.name}] ${message}`),
+					updateStatus: (status) => this.#cameras.setWebStatus(camera.slot, status),
+				},
+			)
+			this.#webApis.set(camera.slot, { signature, api })
+			api.open()
+		}
 	}
 
 	#refreshCameraVariables(): void {

@@ -6,12 +6,15 @@ import type {
 } from '@companion-module/base'
 import { tryUpdateCustomCommandsWithCommandParamOptions } from './actions/custom-command.js'
 import { tryUpdatePresetAndSpeedEncodingsInActions, tryUpdateRecallSetPresetActions } from './actions/presets.js'
-import type { RawConfig } from './config.js'
+import type { AvkansLv20nSecrets, RawConfig } from './config.js'
 
 function ActionUpdater(
 	tryUpdate: (action: CompanionMigrationAction) => boolean,
-): CompanionStaticUpgradeScript<RawConfig> {
-	return (_context: CompanionUpgradeContext<RawConfig>, props: CompanionStaticUpgradeProps<RawConfig>) => {
+): CompanionStaticUpgradeScript<RawConfig, AvkansLv20nSecrets> {
+	return (
+		_context: CompanionUpgradeContext<RawConfig>,
+		props: CompanionStaticUpgradeProps<RawConfig, AvkansLv20nSecrets>,
+	) => {
 		return {
 			updatedActions: props.actions.filter(tryUpdate),
 			updatedConfig: null,
@@ -24,4 +27,4 @@ export const UpgradeScripts = [
 	ActionUpdater(tryUpdateCustomCommandsWithCommandParamOptions),
 	ActionUpdater(tryUpdateRecallSetPresetActions),
 	ActionUpdater(tryUpdatePresetAndSpeedEncodingsInActions),
-] satisfies CompanionStaticUpgradeScript<RawConfig>[]
+] satisfies CompanionStaticUpgradeScript<RawConfig, AvkansLv20nSecrets>[]

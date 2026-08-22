@@ -5,14 +5,7 @@ import type {
 	SomeCompanionActionInputField,
 } from '@companion-module/base'
 import type { ActionDefinitions } from './actionid.js'
-import {
-	MoveToAbsolutePanTilt,
-	PanTiltAction,
-	PanTiltDirection,
-	PanTiltHome,
-	PanTiltPositionInquiry,
-	sendPanTiltCommand,
-} from '../camera/pan-tilt.js'
+import { MoveToAbsolutePanTilt, PanTiltAction, PanTiltDirection, PanTiltPositionInquiry } from '../camera/pan-tilt.js'
 import type { AvkansLv20nInstance } from '../instance.js'
 import { speedChoices } from './speeds.js'
 import { repr } from '../utils/repr.js'
@@ -94,7 +87,9 @@ export function panTiltActions(instance: AvkansLv20nInstance): ActionDefinitions
 	function createPanTiltCallback(direction: readonly [number, number]) {
 		return async (_event: CompanionActionEvent) => {
 			const { panSpeed, tiltSpeed } = instance.panTiltSpeed()
-			sendPanTiltCommand(instance, direction, panSpeed, tiltSpeed)
+			const pan = direction[0] === 0x01 ? -1 : direction[0] === 0x02 ? 1 : 0
+			const tilt = direction[1] === 0x01 ? 1 : direction[1] === 0x02 ? -1 : 0
+			await instance.movePanTiltNative(pan, tilt, panSpeed, tiltSpeed)
 		}
 	}
 
@@ -262,7 +257,7 @@ export function panTiltActions(instance: AvkansLv20nInstance): ActionDefinitions
 			name: 'P/T Home',
 			options: [],
 			callback: async (_event: CompanionActionEvent) => {
-				await instance.sendCommandAndRefresh('pan_tilt', PanTiltHome)
+				await instance.pointNative('home', 0)
 			},
 		},
 		[PanTiltActionId.SetMovementSpeed]: {

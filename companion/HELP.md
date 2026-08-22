@@ -1,6 +1,6 @@
 # AVKANS LV20N VISCA
 
-This module controls up to four AVKANS LV20N cameras from one Companion connection using the documented VISCA command set.
+This module controls up to four AVKANS LV20N cameras from one Companion connection. Native camera operations use the authenticated AVKANS web API, while commands and inquiries without an equivalent web endpoint retain VISCA for complete compatibility.
 
 ## Camera setup
 
@@ -17,7 +17,7 @@ Set **VISCA transport** to **Raw VISCA over TCP** for the standard LV20N configu
 
 ## Multi-camera control
 
-Configure a name and IP address for each camera slot you use. Empty or invalid IP slots are hidden from action and feedback choices. All cameras share the configured TCP port and transport mode, but each uses an independent connection, so one unavailable camera does not block the others.
+Configure a name, IP address, web username, and web password for each camera slot you use. Passwords are stored as separate Companion secrets. Empty or invalid IP slots are hidden from action and feedback choices. All cameras share the configured VISCA TCP port and transport mode, but web authentication and VISCA connections are independent per camera, so one unavailable camera does not block the others. Failed web authentication is retried automatically.
 
 Every camera-facing action has a leading **Camera** choice:
 
@@ -46,7 +46,7 @@ The built-in **Camera control:** actions cover all 138 supported camera-control 
 - DHCP, IP address, subnet mask, gateway, and apply-network-settings controls
 - Factory reset, system menu, and tally-light modes
 
-The original convenience actions and button presets remain available. The comprehensive actions are prefixed **Camera control:** and group related command variants into searchable actions with clear choices and value ranges.
+The original convenience actions and button presets remain available. The comprehensive actions are prefixed **Camera control:** and group related command variants into searchable actions with clear choices and value ranges. Pan/tilt movement, zoom, focus, preset storage, and **Set Preset Recall Speeds** use native camera endpoints. Preset recall stays on VISCA because the native recall endpoint supplies movement speeds directly and can bypass the camera's stored preset-speed values.
 
 ## Camera state, variables, and feedbacks
 

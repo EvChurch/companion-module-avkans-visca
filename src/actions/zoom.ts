@@ -1,6 +1,5 @@
 import type { CompanionActionEvent } from '@companion-module/base'
 import type { ActionDefinitions } from './actionid.js'
-import { ZoomIn, ZoomOut, ZoomStop } from '../camera/zoom.js'
 import type { AvkansLv20nInstance } from '../instance.js'
 
 export enum ZoomActionId {
@@ -15,21 +14,21 @@ export function zoomActions(instance: AvkansLv20nInstance): ActionDefinitions<Zo
 			name: 'Zoom In',
 			options: [],
 			callback: async (_event: CompanionActionEvent) => {
-				instance.sendCommand(ZoomIn)
+				await instance.moveZoomNative(1)
 			},
 		},
 		[ZoomActionId.StartZoomOut]: {
 			name: 'Zoom Out',
 			options: [],
 			callback: async (_event: CompanionActionEvent) => {
-				instance.sendCommand(ZoomOut)
+				await instance.moveZoomNative(-1)
 			},
 		},
 		[ZoomActionId.StopZoom]: {
 			name: 'Zoom Stop',
 			options: [],
 			callback: async (_event: CompanionActionEvent) => {
-				await instance.sendCommandAndRefresh('zoom', ZoomStop)
+				await instance.moveZoomNative(0)
 			},
 		},
 	}

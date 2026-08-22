@@ -4,8 +4,8 @@ import { currentCameraSlot, targetCameraActions } from './camera-target.js'
 
 function roster() {
 	const config = noCameraConfig()
-	config.cameras[1] = { name: 'Wide', host: '10.0.0.1' }
-	config.cameras[3] = { name: 'Stage', host: '10.0.0.3' }
+	config.cameras[1] = { name: 'Wide', host: '10.0.0.1', username: 'admin' }
+	config.cameras[3] = { name: 'Stage', host: '10.0.0.3', username: 'admin' }
 	return cameraRoster(config)
 }
 

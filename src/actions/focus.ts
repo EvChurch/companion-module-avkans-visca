@@ -1,7 +1,6 @@
 import type { CompanionActionEvent } from '@companion-module/base'
 import type { ActionDefinitions } from './actionid.js'
-import { FocusFarStandard, FocusMode, FocusModeToggle, FocusNearStandard, FocusStop } from '../camera/focus.js'
-import { FocusModeInquiry } from '../camera/focus.js'
+import { type FocusMode, FocusModeInquiry } from '../camera/focus.js'
 import type { AvkansLv20nInstance } from '../instance.js'
 import { optionConversions } from './option-conversion.js'
 
@@ -48,9 +47,14 @@ export function focusActions(instance: AvkansLv20nInstance): ActionDefinitions<F
 			callback: async ({ options }) => {
 				const mode = getFocusMode(options)
 				if (mode === 'toggle') {
-					await instance.sendCommandAndRefresh('focus', FocusModeToggle)
+					const current = await instance.sendInquiry(FocusModeInquiry)
+					if (current === null) {
+						instance.log('warn', 'Unable to read the current focus mode; toggle was not sent')
+						return
+					}
+					await instance.setAutoFocusNative(current.mode !== 'auto')
 				} else {
-					await instance.sendCommandAndRefresh('focus', FocusMode, { mode })
+					await instance.setAutoFocusNative(mode === 'auto')
 				}
 			},
 			learn: async (_event: CompanionActionEvent) => {
@@ -65,21 +69,21 @@ export function focusActions(instance: AvkansLv20nInstance): ActionDefinitions<F
 			name: 'Focus Near',
 			options: [],
 			callback: async (_event: CompanionActionEvent) => {
-				instance.sendCommand(FocusNearStandard)
+				await instance.moveFocusNative(-1)
 			},
 		},
 		[FocusActionId.StartFocusFarther]: {
 			name: 'Focus Far',
 			options: [],
 			callback: async (_event: CompanionActionEvent) => {
-				instance.sendCommand(FocusFarStandard)
+				await instance.moveFocusNative(1)
 			},
 		},
 		[FocusActionId.StopFocus]: {
 			name: 'Focus Stop',
 			options: [],
 			callback: async (_event: CompanionActionEvent) => {
-				await instance.sendCommandAndRefresh('focus', FocusStop)
+				await instance.moveFocusNative(0)
 			},
 		},
 	}

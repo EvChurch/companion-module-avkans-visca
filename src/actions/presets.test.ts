@@ -1,5 +1,5 @@
 import type { CompanionMigrationAction, CompanionOptionValues } from '@companion-module/base'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import {
 	getPresetNumber,
 	ObsoletePresetUseVariablesOptionId,
@@ -12,14 +12,20 @@ import {
 	PresetIsTextId,
 	PresetRecallDefault,
 	PresetSetDefault,
+	PresetActionId,
+	PresetPanSpeedId,
+	PresetTiltSpeedId,
+	PresetZoomSpeedId,
 	RecallPresetId,
 	SetPresetId,
+	presetActions,
 	tryUpdatePresetAndSpeedEncodingsInActions,
 	tryUpdateRecallSetPresetActions,
 } from './presets.js'
 import { MockContext } from '../__tests__/mock-context.js'
 import { repr } from '../utils/repr.js'
 import { twoDigitHex } from '../utils/two-digit-hex.js'
+import type { AvkansLv20nInstance } from '../instance.js'
 
 function optionsWithPresetAsNumberOrText(isText: boolean, asText: string, asNumber: number): CompanionOptionValues {
 	return {
@@ -34,6 +40,34 @@ function expectIsErrorString(result: number | string): void {
 		throw new TypeError(`Result should have been an error: ${repr(result)}`)
 	}
 }
+
+test('set preset recall speeds exposes the camera ranges and sends all three values', async () => {
+	const setPresetRecallSpeeds = vi.fn()
+	const instance = { setPresetRecallSpeeds } as unknown as AvkansLv20nInstance
+	const action = presetActions(instance)[PresetActionId.SetPresetRecallSpeeds]
+	expect(action).toBeDefined()
+	expect(action?.options).toEqual([
+		expect.objectContaining({ id: PresetPanSpeedId, min: 1, max: 24 }),
+		expect.objectContaining({ id: PresetTiltSpeedId, min: 1, max: 20 }),
+		expect.objectContaining({ id: PresetZoomSpeedId, min: 1, max: 8 }),
+	])
+
+	await action?.callback(
+		{
+			actionId: PresetActionId.SetPresetRecallSpeeds,
+			id: 'test',
+			controlId: 'test',
+			surfaceId: undefined,
+			options: {
+				[PresetPanSpeedId]: 12,
+				[PresetTiltSpeedId]: 10,
+				[PresetZoomSpeedId]: 4,
+			},
+		},
+		new MockContext(),
+	)
+	expect(setPresetRecallSpeeds).toHaveBeenCalledWith({ pan: 12, tilt: 10, zoom: 4 })
+})
 
 describe('test invalid preset input', () => {
 	test('User enters "foo" (not a number at all) as the preset', async () => {

@@ -17,6 +17,7 @@ export interface RawConfig {
 /** The id of the debug-logging config option. */
 const DebugLoggingOptionId = 'debugLogging'
 const TransportModeOptionId = 'transportMode'
+const DefaultCameraWebUsername = 'admin'
 
 export type TransportMode = 'raw' | 'visca-over-ip'
 
@@ -28,6 +29,14 @@ export interface ConfiguredCamera {
 	slot: CameraSlot
 	name: string
 	host: Host
+	username: string
+}
+
+export type CameraWebPasswordOptionId = `camera${CameraSlot}Password`
+export type AvkansLv20nSecrets = Partial<Record<CameraWebPasswordOptionId, string>>
+
+export function cameraWebPasswordOptionId(slot: CameraSlot): CameraWebPasswordOptionId {
+	return `camera${slot}Password`
 }
 
 const DefaultTransportMode: TransportMode = 'raw'
@@ -40,7 +49,8 @@ export function getConfigFields(): SomeCompanionConfigField[] {
 			id: 'info',
 			width: 12,
 			label: 'Information',
-			value: 'Configure the LV20N Control Protocol page for TCP, Server mode, and the same port used below.',
+			value:
+				'Each enabled camera needs its own web login. Also configure the LV20N Control Protocol page for TCP, Server mode, and the same VISCA fallback port used below.',
 		},
 	]
 	for (const slot of CameraSlots) {
@@ -56,6 +66,21 @@ export function getConfigFields(): SomeCompanionConfigField[] {
 				type: 'textinput',
 				id: `camera${slot}Host`,
 				label: `Camera ${slot} IP (leave blank to disable)`,
+				width: 6,
+				default: '',
+			},
+			{
+				type: 'textinput',
+				id: `camera${slot}Username`,
+				label: `Camera ${slot} web username`,
+				width: 6,
+				default: DefaultCameraWebUsername,
+				required: true,
+			},
+			{
+				type: 'secret-text',
+				id: cameraWebPasswordOptionId(slot),
+				label: `Camera ${slot} web password`,
 				width: 6,
 				default: '',
 			},
@@ -95,7 +120,7 @@ export function getConfigFields(): SomeCompanionConfigField[] {
 
 /** Validated config information for the camera connection being manipulated. */
 export type AvkansLv20nConfig = {
-	cameras: Record<CameraSlot, { name: string; host: string }>
+	cameras: Record<CameraSlot, { name: string; host: string; username: string }>
 
 	/** The TCP/IP port used to connect to the camera. */
 	port: number
@@ -118,10 +143,9 @@ export type AvkansLv20nConfig = {
 export function noCameraConfig(): AvkansLv20nConfig {
 	return {
 		// Empty host ensures that these options won't trigger a connection.
-		cameras: Object.fromEntries(CameraSlots.map((slot) => [slot, { name: `Camera ${slot}`, host: '' }])) as Record<
-			CameraSlot,
-			{ name: string; host: string }
-		>,
+		cameras: Object.fromEntries(
+			CameraSlots.map((slot) => [slot, { name: `Camera ${slot}`, host: '', username: DefaultCameraWebUsername }]),
+		) as Record<CameraSlot, { name: string; host: string; username: string }>,
 		port: DefaultPort,
 		transportMode: DefaultTransportMode,
 		debugLogging: false,
@@ -139,15 +163,21 @@ export function validateConfig(config: RawConfig): AvkansLv20nConfig {
 			{
 				name: toCameraName(config[`camera${slot}Name`], slot),
 				host: toHost(config[`camera${slot}Host`]),
+				username: toCameraWebUsername(config[`camera${slot}Username`]),
 			},
 		]),
-	) as Record<CameraSlot, { name: string; host: string }>
+	) as Record<CameraSlot, { name: string; host: string; username: string }>
 	return {
 		cameras,
 		port: toPort(config.port),
 		transportMode: toTransportMode(config[TransportModeOptionId]),
 		debugLogging: toDebugLogging(config[DebugLoggingOptionId]),
 	}
+}
+
+function toCameraWebUsername(value: InputValue | undefined): string {
+	const username = value === undefined ? '' : String(value).trim()
+	return username || DefaultCameraWebUsername
 }
 
 function toCameraName(value: InputValue | undefined, slot: CameraSlot): string {
@@ -158,7 +188,7 @@ function toCameraName(value: InputValue | undefined, slot: CameraSlot): string {
 export function cameraRoster(config: AvkansLv20nConfig): ConfiguredCamera[] {
 	return CameraSlots.flatMap((slot) => {
 		const camera = config.cameras[slot]
-		return isValidHost(camera.host) ? [{ slot, name: camera.name, host: camera.host }] : []
+		return isValidHost(camera.host) ? [{ slot, name: camera.name, host: camera.host, username: camera.username }] : []
 	})
 }
 

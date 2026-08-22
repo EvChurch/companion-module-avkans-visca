@@ -6,7 +6,7 @@ import type {
 	SomeCompanionActionInputField,
 } from '@companion-module/base'
 import type { ActionDefinitions } from './actionid.js'
-import { isValidPreset, PresetRecall, PresetSave } from '../camera/presets.js'
+import { isValidPreset, PresetRecall } from '../camera/presets.js'
 import type { AvkansLv20nInstance } from '../instance.js'
 import { repr } from '../utils/repr.js'
 import { twoDigitHex } from '../utils/two-digit-hex.js'
@@ -21,7 +21,12 @@ export const SetPresetId = 'setPreset'
 export enum PresetActionId {
 	RecallPreset = RecallPresetId,
 	SetPreset = SetPresetId,
+	SetPresetRecallSpeeds = 'setPresetRecallSpeeds',
 }
+
+export const PresetPanSpeedId = 'presetPanSpeed'
+export const PresetTiltSpeedId = 'presetTiltSpeed'
+export const PresetZoomSpeedId = 'presetZoomSpeed'
 
 /**
  * The action ID of an obsolete action that would set a preset identified by a
@@ -308,6 +313,44 @@ export function presetActions(instance: AvkansLv20nInstance): ActionDefinitions<
 	}
 
 	return {
+		[PresetActionId.SetPresetRecallSpeeds]: {
+			name: 'Set Preset Recall Speeds',
+			description:
+				'Sets the pan, tilt, and zoom speeds the camera uses when moving to a preset. Requires camera web credentials in the module configuration.',
+			options: [
+				{
+					type: 'number',
+					id: PresetPanSpeedId,
+					label: 'Pan speed',
+					min: 1,
+					max: 24,
+					default: 5,
+				},
+				{
+					type: 'number',
+					id: PresetTiltSpeedId,
+					label: 'Tilt speed',
+					min: 1,
+					max: 20,
+					default: 5,
+				},
+				{
+					type: 'number',
+					id: PresetZoomSpeedId,
+					label: 'Zoom speed',
+					min: 1,
+					max: 8,
+					default: 6,
+				},
+			],
+			callback: async ({ options }) => {
+				await instance.setPresetRecallSpeeds({
+					pan: Number(options[PresetPanSpeedId]),
+					tilt: Number(options[PresetTiltSpeedId]),
+					zoom: Number(options[PresetZoomSpeedId]),
+				})
+			},
+		},
 		[PresetActionId.SetPreset]: {
 			name: 'Set Preset',
 			options: presetNumberOptions(PresetSetDefault),
@@ -318,7 +361,7 @@ export function presetActions(instance: AvkansLv20nInstance): ActionDefinitions<
 					return
 				}
 
-				instance.sendCommand(PresetSave, { preset })
+				await instance.pointNative('set', preset)
 			},
 		},
 		[PresetActionId.RecallPreset]: {
