@@ -4,8 +4,8 @@ import { cameraSelectionActions, CameraSelectionActionId } from './camera-select
 
 test('offers configured direct choices and separate next/previous actions without target options', async () => {
 	const config = noCameraConfig()
-	config.cameras[2] = { name: 'Tight', host: '10.0.0.2' }
-	config.cameras[4] = { name: 'Stage', host: '10.0.0.4' }
+	config.cameras[2] = { name: 'Tight', host: '10.0.0.2', username: 'admin' }
+	config.cameras[4] = { name: 'Stage', host: '10.0.0.4', username: 'admin' }
 	const instance = { selectCamera: vi.fn(), selectNextCamera: vi.fn(), selectPreviousCamera: vi.fn() }
 	const actions = cameraSelectionActions(instance, cameraRoster(config))
 	const direct = actions[CameraSelectionActionId.Select]!

@@ -7,8 +7,8 @@ import { CameraTargetOptionId } from './camera-target.js'
 
 test('adds the camera dropdown to every camera-facing action and not selector actions', () => {
 	const config = noCameraConfig()
-	config.cameras[1] = { name: 'Wide', host: '10.0.0.1' }
-	config.cameras[2] = { name: 'Tight', host: '10.0.0.2' }
+	config.cameras[1] = { name: 'Wide', host: '10.0.0.1', username: 'admin' }
+	config.cameras[2] = { name: 'Tight', host: '10.0.0.2', username: 'operator' }
 	const instance = {
 		config,
 		resolveCameraTarget: (target: string | number) => (target === 'active' ? 1 : target),

@@ -9,12 +9,6 @@ export function isValidPreset(n: number): boolean {
 	return Number.isInteger(n) && 0 <= n && n <= 64
 }
 
-export const PresetSave = new ModuleDefinedCommand([0x81, 0x01, 0x04, 0x3f, 0x01, 0x00, 0xff], {
-	preset: {
-		nibbles: [10, 11],
-	},
-})
-
 export const PresetRecall = new ModuleDefinedCommand([0x81, 0x01, 0x04, 0x3f, 0x02, 0x00, 0xff], {
 	preset: {
 		nibbles: [10, 11],

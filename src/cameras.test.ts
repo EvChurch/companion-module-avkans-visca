@@ -6,7 +6,7 @@ import { ModuleDefinedCommand } from './visca/command.js'
 
 function configWith(...entries: Array<[1 | 2 | 3 | 4, string, string]>): AvkansLv20nConfig {
 	const config = structuredClone(noCameraConfig())
-	for (const [slot, name, host] of entries) config.cameras[slot] = { name, host }
+	for (const [slot, name, host] of entries) config.cameras[slot] = { name, host, username: 'admin' }
 	return config
 }
 
@@ -112,5 +112,17 @@ describe('CameraManager', () => {
 		await manager.select(2)
 		expect(manager.activeSlot).toBe(2)
 		expect(host.log).toHaveBeenCalledWith('warn', expect.stringContaining('Focus stop unavailable'))
+	})
+
+	test('combines web authentication and VISCA status independently per camera', () => {
+		const { manager, host } = harness()
+		manager.reconcile(configWith([1, 'Wide', '10.0.0.1'], [2, 'Tight', '10.0.0.2']))
+		manager.setWebStatus(1, InstanceStatus.ConnectionFailure)
+		expect(manager.status(1)).toBe(InstanceStatus.ConnectionFailure)
+		expect(manager.status(2)).toBe(InstanceStatus.Ok)
+		expect(host.updateStatus).toHaveBeenLastCalledWith(InstanceStatus.Ok)
+
+		manager.setWebStatus(1, InstanceStatus.Ok)
+		expect(manager.status(1)).toBe(InstanceStatus.Ok)
 	})
 })

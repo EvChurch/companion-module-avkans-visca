@@ -24,7 +24,7 @@ describe('camera state feedbacks', () => {
 			cameraIsConnected: vi.fn((target: string | number) => target === 2),
 		} as unknown as AvkansLv20nInstance
 		const config = noCameraConfig()
-		config.cameras[2] = { name: 'Tight', host: '10.0.0.2' }
+		config.cameras[2] = { name: 'Tight', host: '10.0.0.2', username: 'admin' }
 		const feedbacks = getLv20nFeedbacks(instance, cameraRoster(config))
 
 		const powerId = cameraStateFeedbackId('power')

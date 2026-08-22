@@ -2,20 +2,20 @@ import { describe, expect, test, vi } from 'vitest'
 import type { AvkansLv20nInstance } from '../instance.js'
 import { FocusActionId, FocusModeId, focusActions } from './focus.js'
 
-function mockInstance(): { instance: AvkansLv20nInstance; sendCommandAndRefresh: ReturnType<typeof vi.fn> } {
-	const sendCommandAndRefresh = vi.fn()
+function mockInstance(): { instance: AvkansLv20nInstance; setAutoFocusNative: ReturnType<typeof vi.fn> } {
+	const setAutoFocusNative = vi.fn()
 	return {
 		instance: {
-			sendCommandAndRefresh,
-			sendInquiry: vi.fn(),
+			setAutoFocusNative,
+			sendInquiry: vi.fn(async () => ({ mode: 'auto' })),
 		} as unknown as AvkansLv20nInstance,
-		sendCommandAndRefresh,
+		setAutoFocusNative,
 	}
 }
 
 describe('focus actions', () => {
 	test('offers and sends the focus mode toggle command', async () => {
-		const { instance, sendCommandAndRefresh } = mockInstance()
+		const { instance, setAutoFocusNative } = mockInstance()
 		const action = focusActions(instance)[FocusActionId.SelectFocusMode]
 		const mode = action.options.find((option) => option.id === FocusModeId)
 
@@ -34,8 +34,6 @@ describe('focus actions', () => {
 			{} as never,
 		)
 
-		expect(sendCommandAndRefresh).toHaveBeenCalledOnce()
-		expect(sendCommandAndRefresh.mock.calls[0][0]).toBe('focus')
-		expect(sendCommandAndRefresh.mock.calls[0][1].toBytes({})).toStrictEqual([0x81, 0x01, 0x04, 0x38, 0x10, 0xff])
+		expect(setAutoFocusNative).toHaveBeenCalledWith(false)
 	})
 })

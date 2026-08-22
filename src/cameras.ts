@@ -27,6 +27,8 @@ interface CameraSession {
 	host: string
 	signature: string
 	port: CameraPort
+	viscaStatus: InstanceStatus
+	webStatus: InstanceStatus
 	status: InstanceStatus
 }
 
@@ -83,6 +85,13 @@ export class CameraManager {
 		return this.#sessions.get(slot)?.status ?? InstanceStatus.Disconnected
 	}
 
+	setWebStatus(slot: CameraSlot, status: InstanceStatus): void {
+		const session = this.#sessions.get(slot)
+		if (session === undefined || session.webStatus === status) return
+		session.webStatus = status
+		this.#updateSessionStatus(slot, session)
+	}
+
 	resolve(target: CameraTarget): CameraSlot | undefined {
 		return target === 'active' ? this.#activeSlot : this.#sessions.has(target) ? target : undefined
 	}
@@ -109,6 +118,8 @@ export class CameraManager {
 				name: camera.name,
 				host: camera.host,
 				signature,
+				viscaStatus: InstanceStatus.Connecting,
+				webStatus: InstanceStatus.Ok,
 				status: InstanceStatus.Connecting,
 				port: undefined as unknown as CameraPort,
 			}
@@ -118,9 +129,8 @@ export class CameraManager {
 				},
 				log: (level, message) => host.log(level, `[Camera ${camera.slot}: ${session.name}] ${message}`),
 				updateStatus: (status) => {
-					session.status = status
-					this.#updateAggregateStatus()
-					this.#host.onCameraStatusChanged(camera.slot, status)
+					session.viscaStatus = status
+					this.#updateSessionStatus(camera.slot, session)
 				},
 			}
 			const host = this.#host
@@ -134,6 +144,21 @@ export class CameraManager {
 		}
 		this.#updateAggregateStatus()
 		this.#host.onStateChanged()
+	}
+
+	#updateSessionStatus(slot: CameraSlot, session: CameraSession): void {
+		const statuses = [session.viscaStatus, session.webStatus]
+		const status = statuses.includes(InstanceStatus.ConnectionFailure)
+			? InstanceStatus.ConnectionFailure
+			: statuses.every((value) => value === InstanceStatus.Ok)
+				? InstanceStatus.Ok
+				: statuses.includes(InstanceStatus.Connecting)
+					? InstanceStatus.Connecting
+					: InstanceStatus.Disconnected
+		if (session.status === status) return
+		session.status = status
+		this.#updateAggregateStatus()
+		this.#host.onCameraStatusChanged(slot, status)
 	}
 
 	async select(slot: CameraSlot): Promise<boolean> {
