@@ -69,7 +69,7 @@ test('maps every catalog control with queryable state', () => {
 		.filter((group) => inquiriesForCommandGroup(group.id).length === 0)
 		.map((group) => group.id)
 
-	expect(groupsWithoutQueryableState).toStrictEqual(['address_set', 'system_menu', 'tally'])
+	expect(groupsWithoutQueryableState).toStrictEqual(['address_set', 'system_menu'])
 })
 
 test('polls again only after the previous refresh finishes', async () => {

@@ -16,10 +16,18 @@ function mockInstance(): { instance: AvkansLv20nInstance; sendCommandAndRefresh:
 describe('LV20N catalog actions', () => {
 	test('registers one searchable action for every camera command group', () => {
 		const actions = lv20nCatalogActions(mockInstance().instance)
-		expect(Object.keys(actions)).toHaveLength(46)
+		expect(Object.keys(actions)).toHaveLength(44)
 		expect(actions.lv20n_zoom?.name).toBe('Camera control: Zoom')
-		expect(actions.lv20n_tally?.name).toBe('Camera control: Tally light')
+		expect(actions.lv20n_tally).toBeUndefined()
+		expect(actions.lv20n_bright).toBeUndefined()
 		expect(actions.lv20n_ip_address?.name).toBe('Camera control: Network IP address')
+	})
+
+	test('describes operating-mode requirements found during live verification', () => {
+		const actions = lv20nCatalogActions(mockInstance().instance)
+		expect(actions.lv20n_focus.description).toContain('Manual Focus mode')
+		expect(actions.lv20n_exposure_compensation.description).toContain('Full Auto')
+		expect(actions.lv20n_memory.description).toContain('stored preset')
 	})
 
 	test('uses neutral labels for parameters shared by opposite directions', () => {

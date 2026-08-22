@@ -1,10 +1,16 @@
 import { describe, expect, test } from 'vitest'
-import { lv20nCommandGroups } from './lv20n-command-catalog.js'
+import {
+	lv20nCommandGroups,
+	lv20nDocumentedCommandGroups,
+	UnsupportedLv20nCommandIds,
+} from './lv20n-command-catalog.js'
 import { buildLv20nCommandBytes, createLv20nCommand } from './lv20n-command.js'
 import type { Lv20nCommandSpec } from './lv20n-types.js'
 
 const commands: Lv20nCommandSpec[] = []
 for (const group of lv20nCommandGroups) commands.push(...group.commands)
+const documentedCommands: Lv20nCommandSpec[] = []
+for (const group of lv20nDocumentedCommandGroups) documentedCommands.push(...group.commands)
 
 function command(id: string) {
 	const command = commands.find((candidate) => candidate.id === id)
@@ -13,14 +19,17 @@ function command(id: string) {
 }
 
 describe('complete LV20N set-command catalog', () => {
-	test('represents every set command exactly once', () => {
-		expect(lv20nCommandGroups).toHaveLength(46)
-		expect(commands).toHaveLength(138)
-		expect(new Set(commands.map((command) => command.id)).size).toBe(138)
+	test('retains every documented packet and exposes only live-supported commands', () => {
+		expect(lv20nDocumentedCommandGroups).toHaveLength(46)
+		expect(documentedCommands).toHaveLength(138)
+		expect(new Set(documentedCommands.map((command) => command.id)).size).toBe(138)
+		expect(lv20nCommandGroups).toHaveLength(44)
+		expect(commands).toHaveLength(127)
+		expect(commands.every((command) => !UnsupportedLv20nCommandIds.has(command.id))).toBe(true)
 	})
 
 	test('builds every command with documented default parameters', () => {
-		for (const command of commands) {
+		for (const command of documentedCommands) {
 			const values = Object.fromEntries(command.parameters.map((parameter) => [parameter.id, parameter.default]))
 			const bytes = buildLv20nCommandBytes(command, values)
 			expect(bytes[0]).toBeOneOf([0x81, 0x88])

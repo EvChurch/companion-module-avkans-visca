@@ -9,6 +9,30 @@ export type Lv20nCatalogActionId = `lv20n_${(typeof lv20nCommandGroups)[number][
 
 const CommandOptionId = 'command'
 
+const commandRequirements: Readonly<Record<string, string>> = {
+	digital_zoom: 'Digital Zoom Limit requires digital zoom to be on.',
+	focus: 'Manual focus movement and direct-position commands require Manual Focus mode.',
+	white_balance: 'One Push Trigger requires One Push WB mode.',
+	manual_red_gain: 'Requires Manual white balance mode.',
+	manual_blue_gain: 'Requires Manual white balance mode.',
+	automatic_red_gain: 'Requires Auto white balance mode.',
+	automatic_blue_gain: 'Requires Auto white balance mode.',
+	automatic_green_gain: 'Requires Auto white balance mode.',
+	shutter: 'Requires Manual or Shutter Priority exposure mode.',
+	iris: 'Requires Manual or Iris Priority exposure mode.',
+	gain: 'Requires Manual exposure mode.',
+	exposure_compensation:
+		'Amount controls require Full Auto, Shutter Priority, or Iris Priority exposure mode. On and Off remain available in other modes.',
+	memory: 'Recall requires a stored preset. Set and Reset change the selected preset.',
+	video_system: 'Changing the video format can interrupt camera output.',
+	dhcp: 'Changing network settings can disconnect the camera when settings are applied.',
+	ip_address: 'Changing network settings can disconnect the camera when settings are applied.',
+	ip_mask: 'Changing network settings can disconnect the camera when settings are applied.',
+	ip_gateway: 'Changing network settings can disconnect the camera when settings are applied.',
+	apply_ip: 'Applies staged network settings and can disconnect the camera.',
+	factory_reset: 'Restores factory settings and can make the camera unavailable.',
+}
+
 function parameterVisibility(group: Lv20nCommandGroup, parameterId: string): string | undefined {
 	if (group.commands.length === 1) return undefined
 
@@ -97,7 +121,9 @@ export function lv20nCatalogActions(instance: AvkansLv20nInstance): ActionDefini
 		const actionId: Lv20nCatalogActionId = `lv20n_${group.id}`
 		actions[actionId] = {
 			name: `Camera control: ${group.name}`,
-			description: `Control ${group.name.toLowerCase()} on the selected camera.`,
+			description: [`Control ${group.name.toLowerCase()} on the selected camera.`, commandRequirements[group.id]]
+				.filter((part) => part !== undefined)
+				.join(' '),
 			options: groupOptions(group),
 			callback: async ({ options }) => {
 				const command = selectedCommand(group, options)
