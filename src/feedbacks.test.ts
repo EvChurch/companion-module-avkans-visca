@@ -4,6 +4,7 @@ import {
 	cameraStateFeedbackId,
 	CameraConnectionFeedbackId,
 	getLv20nFeedbacks,
+	trackingFeedbackId,
 } from './feedbacks.js'
 import { cameraRoster, noCameraConfig } from './config.js'
 import type { AvkansLv20nInstance } from './instance.js'
@@ -51,4 +52,39 @@ describe('camera state feedbacks', () => {
 		).toBe(true)
 		expect(active.name).toBe('Active camera is')
 	})
+})
+
+test('provides direct per-camera tracking feedbacks', async () => {
+	const refreshTracking = vi.fn()
+	const instance = {
+		trackingValue: vi.fn((id: string, target: string | number) =>
+			id === 'base2_autozoomenablechk' && target === 2 ? 1 : undefined,
+		),
+		refreshTracking,
+		isCameraActive: vi.fn(),
+		cameraIsConnected: vi.fn(),
+		cameraStateValue: vi.fn(),
+		refreshCameraState: vi.fn(),
+	} as unknown as AvkansLv20nInstance
+	const config = noCameraConfig()
+	config.cameras[2] = { name: 'Tight', host: '10.0.0.2', username: 'admin' }
+	const field = {
+		id: 'base2_autozoomenablechk',
+		panel: 'Base2' as const,
+		key: 'autoZoomEnableChk',
+		label: 'Auto Zoom',
+		component: 'Switch' as const,
+		default: 1,
+	}
+	const feedbacks = getLv20nFeedbacks(instance, cameraRoster(config), [field])
+	const id = trackingFeedbackId(field.id)
+	const feedback = feedbacks[id]
+	if (!feedback || feedback.type !== 'boolean') throw new Error('missing tracking feedback')
+
+	expect(feedback.name).toBe('Camera: Tracking Auto Zoom is')
+	expect(
+		await feedback.callback({ ...feedbackEvent(id, { camera: 2, expected: 1 }), type: 'boolean' }, {} as never),
+	).toBe(true)
+	await feedback.subscribe?.(feedbackEvent(id, { camera: 2, expected: 1 }), {} as never)
+	expect(refreshTracking).toHaveBeenCalledWith(2)
 })

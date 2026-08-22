@@ -48,6 +48,14 @@ The built-in **Camera control:** actions cover all 138 supported camera-control 
 
 The original convenience actions and button presets remain available. The comprehensive actions are prefixed **Camera control:** and group related command variants into searchable actions with clear choices and value ranges. Pan/tilt movement, zoom, focus, preset storage, and **Set Preset Recall Speeds** use native camera endpoints. Preset recall stays on VISCA because the native recall endpoint supplies movement speeds directly and can bypass the camera's stored preset-speed values.
 
+## Auto-tracking controls
+
+After web authentication, the module reads the tracking capabilities reported by each camera and adds a direct **Tracking:** action for every supported switch, choice, and numeric setting. This includes Track Mode, Position Correction, Tracking Height, Auto Zoom, Tilt Motion, Tracking Outside Podium, sensitivity and speed controls, target-loss behavior, output switching, gesture recognition, and multiple-target handling when the camera firmware exposes them. Every tracking action can follow **Active Camera** or target a named camera.
+
+Tracking state refreshes automatically every 10 seconds and immediately after a tracking action. Active-camera variables use `camera_active_tracking_*`; fixed-camera variables use `camera_1_tracking_*` through `camera_4_tracking_*`. Each setting also has a matching **Camera: Tracking … is** feedback with the same camera selector and valid values reported by the camera.
+
+The camera's interactive video overlays are intentionally not reproduced as button actions: drawing podium, shield, pre-position, or blocked regions and clicking a subject to specify a tracker require video coordinates. Configure those regions in the LV20N web interface; their related operating settings remain available in Companion.
+
 ## Camera state, variables, and feedbacks
 
 When a camera connects, the module automatically reads the 45 state values verified on LV20N firmware V1.1.36. Connected cameras are refreshed every 30 seconds, with each camera's queries kept sequential so polling cycles cannot overlap or overload its VISCA socket. Controls with known state effects also refresh their related values as soon as the command completes. This keeps power, operating modes, positions, image settings, network information, and firmware details current whether a change comes from Companion or another controller.

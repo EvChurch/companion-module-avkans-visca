@@ -14,8 +14,13 @@ import { lv20nInquiryActions } from './lv20n-inquiries.js'
 import { cameraRoster } from '../config.js'
 import { cameraSelectionActions } from './camera-selection.js'
 import { targetCameraActions } from './camera-target.js'
+import { trackingActions } from './tracking.js'
+import type { TrackingField } from '../tracking.js'
 
-export function getActions(instance: AvkansLv20nInstance): ActionDefinitions<AvkansLv20nActionId> {
+export function getActions(
+	instance: AvkansLv20nInstance,
+	trackingFields: readonly TrackingField[] = [],
+): ActionDefinitions<AvkansLv20nActionId> {
 	const cameraActions = {
 		...customCommandActions(instance),
 		...exposureActions(instance),
@@ -28,6 +33,7 @@ export function getActions(instance: AvkansLv20nInstance): ActionDefinitions<Avk
 		...zoomActions(instance),
 		...lv20nCatalogActions(instance),
 		...lv20nInquiryActions(instance),
+		...trackingActions(instance, trackingFields),
 	}
 	return {
 		...targetCameraActions(cameraActions, cameraRoster(instance.config), (target) =>

@@ -1,12 +1,21 @@
 import { describe, expect, test, vi } from 'vitest'
 import { InstanceStatus } from '@companion-module/base'
 import { CameraWebApi, setPresetRecallSpeeds } from './camera-web-api.js'
+import { normalizeTrackingAbilities } from './tracking.js'
 
 function jsonResponse(body: unknown, status = 200): Response {
 	return new Response(JSON.stringify(body), {
 		status,
 		headers: { 'Content-Type': 'application/json' },
 	})
+}
+
+function requestUrl(input: string | URL | Request): string {
+	return typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+}
+
+function requestBody(init: RequestInit | undefined): unknown {
+	return typeof init?.body === 'string' ? JSON.parse(init.body) : undefined
 }
 
 describe('AVKANS camera web API preset speeds', () => {
@@ -148,5 +157,95 @@ describe('AVKANS native camera controls', () => {
 		await expect(api.moveFocus(0)).rejects.toThrow('network unavailable')
 		expect(status.mock.calls.map(([value]) => value)).toEqual([InstanceStatus.Ok, InstanceStatus.ConnectionFailure])
 		api.close()
+	})
+})
+
+describe('AVKANS tracking controls', () => {
+	test('discovers supported settings and refreshes their values', async () => {
+		const schema = vi.fn()
+		const values = vi.fn()
+		const fetcher = vi.fn<typeof fetch>(async (url, init) => {
+			const address = requestUrl(url)
+			if (address.endsWith('/auth/login')) return jsonResponse({ code: 200, data: { token: 'token' } })
+			if (address.includes('/panel-ability?panel=Base1')) {
+				return jsonResponse({
+					code: 200,
+					data: [{ key: 'TrackSwitch', component: 'Select', default: 0, feature: [{ label: 'Off', value: 0 }] }],
+				})
+			}
+			if (address.includes('/panel-ability?panel=Base2')) {
+				return jsonResponse({ code: 200, data: [{ key: 'autoZoomEnableChk', component: 'Switch', default: 1 }] })
+			}
+			const body = requestBody(init)
+			if (address.endsWith('/base1/get')) return jsonResponse({ code: 200, data: [{ key: 'TrackSwitch', value: 1 }] })
+			if (address.endsWith('/base2/get')) {
+				expect(body).toEqual({ keys: ['autoZoomEnableChk'] })
+				return jsonResponse({ code: 200, data: [{ key: 'autoZoomEnableChk', value: 0 }] })
+			}
+			if (address.endsWith('/status/get')) return jsonResponse({ code: 200, data: [{ key: 'trackheight', value: 80 }] })
+			throw new Error(`Unexpected request: ${address}`)
+		})
+		const api = new CameraWebApi(
+			'10.201.0.50',
+			{ username: 'admin', password: 'secret' },
+			{ log: vi.fn(), updateStatus: vi.fn(), trackingSchemaUpdated: schema, trackingValuesUpdated: values },
+			fetcher,
+		)
+
+		await api.refreshTracking()
+		expect(schema).toHaveBeenCalledWith([
+			expect.objectContaining({ key: 'TrackSwitch' }),
+			expect.objectContaining({ key: 'autoZoomEnableChk' }),
+			expect.objectContaining({ key: 'trackheight' }),
+		])
+		expect(values).toHaveBeenCalledWith({
+			base1_trackswitch: 1,
+			base2_autozoomenablechk: 0,
+			base1_trackheight: 80,
+		})
+	})
+
+	test('merges a changed Base2 value into the complete tracking configuration', async () => {
+		const requests: Array<{ url: string; body: unknown }> = []
+		const abilities = [
+			{ key: 'autoZoomEnableChk', component: 'Switch', default: 1 },
+			{ key: 'trackSpeed', component: 'Slider', default: 5, feature: { min: 1, max: 10, step: 1 } },
+		]
+		const fetcher = vi.fn<typeof fetch>(async (url, init) => {
+			const address = requestUrl(url)
+			const body = requestBody(init)
+			requests.push({ url: address, body })
+			if (address.endsWith('/auth/login')) return jsonResponse({ code: 200, data: { token: 'token' } })
+			if (address.includes('/panel-ability?panel=Base1')) return jsonResponse({ code: 200, data: [] })
+			if (address.includes('/panel-ability?panel=Base2')) return jsonResponse({ code: 200, data: abilities })
+			if (address.endsWith('/base2/get')) {
+				return jsonResponse({
+					code: 200,
+					data: [
+						{ key: 'autoZoomEnableChk', value: 1 },
+						{ key: 'trackSpeed', value: 5 },
+					],
+				})
+			}
+			if (address.endsWith('/status/get')) return jsonResponse({ code: 200, data: [] })
+			if (address.endsWith('/base2/set')) return jsonResponse({ code: 200, data: [] })
+			throw new Error(`Unexpected request: ${address}`)
+		})
+		const api = new CameraWebApi(
+			'10.201.0.50',
+			{ username: 'admin', password: 'secret' },
+			{ log: vi.fn(), updateStatus: vi.fn() },
+			fetcher,
+		)
+		await api.refreshTracking()
+		const fields = normalizeTrackingAbilities('Base2', abilities)
+		const autoZoom = fields[0]
+		if (autoZoom === undefined) throw new Error('missing auto zoom field')
+		await api.setTrackingValue(autoZoom, 0)
+
+		expect(requests.find(({ url }) => url.endsWith('/base2/set'))?.body).toEqual({
+			autoZoomEnableChk: '0',
+			trackSpeed: '5',
+		})
 	})
 })
