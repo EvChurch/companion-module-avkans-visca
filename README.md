@@ -16,6 +16,8 @@ Camera state loads when each camera's web authentication and VISCA connection ar
 
 Auto-tracking controls are discovered from each camera after authentication, so Companion uses the exact choices and ranges supported by its firmware. Tracking actions can follow the active camera or target a named camera. Tracking variables and direct feedbacks refresh every 10 seconds and immediately after a change.
 
+Manual and preset-recall zoom speeds are available as active-camera and fixed-camera variables with matching numeric feedbacks. They refresh every 10 seconds and immediately after preset speeds are changed.
+
 The module includes 127 supported control commands and all 48 documented camera-state queries. Of those commands, 106 non-destructive commands completed live against firmware V1.1.36; the remaining 21 power-off, factory-reset, network, preset-overwrite, and video-format commands retain their workbook-validated packets but were not executed on the production camera. Pan/tilt movement, zoom, focus, preset storage, and preset-speed configuration use native AVKANS HTTP endpoints. Preset recall and controls without an equivalent endpoint retain VISCA so behavior and custom-command support are not lost. The AVKANS workbook also lists Bright exposure and tally-light packets, but V1.1.36 rejects or ignores all 11 of those commands, so the module does not expose non-working actions. An optional **VISCA over IP framing** transport is available for cameras configured to require the eight-byte network header and sequence number.
 
 See [companion/HELP.md](./companion/HELP.md) for supported controls and troubleshooting. The source camera documentation is available from the [AVKANS documents page](https://avkans.com/pages/documents).

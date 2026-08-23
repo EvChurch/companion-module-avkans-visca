@@ -1,5 +1,6 @@
 import { InstanceStatus } from '@companion-module/base'
 import { TrackingHeightField, normalizeTrackingAbilities, type TrackingField, type TrackingValue } from './tracking.js'
+import { ZoomSpeedDefinitions, type ZoomSpeedValues } from './zoom-speed-state.js'
 
 interface CameraWebCredentials {
 	username: string
@@ -17,6 +18,7 @@ interface CameraWebApiHost {
 	updateStatus(status: InstanceStatus): void
 	trackingSchemaUpdated?(fields: readonly TrackingField[]): void
 	trackingValuesUpdated?(values: Readonly<Record<string, TrackingValue>>): void
+	zoomSpeedsUpdated?(values: ZoomSpeedValues): void
 }
 
 type CameraApiResponse = { code?: number; data?: unknown; message?: string }
@@ -89,6 +91,7 @@ export class CameraWebApi {
 			['preset_z_speed', speeds.zoom],
 		] as const)
 			await this.setPtValue(key, value)
+		await this.refreshZoomSpeeds()
 	}
 
 	async setPtValue(key: string, value: number): Promise<void> {
@@ -105,6 +108,19 @@ export class CameraWebApi {
 		})
 		if (result === undefined) throw new Error(`Camera web API returned no value for ${key}`)
 		return result.value
+	}
+
+	async refreshZoomSpeeds(): Promise<void> {
+		const values = await this.#request('POST', '/pt/get', { keys: ZoomSpeedDefinitions.map(({ key }) => key) })
+		if (!Array.isArray(values)) throw new Error('Camera web API returned no zoom speed values')
+		const speeds: ZoomSpeedValues = {}
+		for (const value of values) {
+			if (typeof value !== 'object' || value === null) continue
+			const record = value as { key?: unknown; value?: unknown }
+			const definition = ZoomSpeedDefinitions.find(({ key }) => key === record.key)
+			if (definition !== undefined && typeof record.value === 'number') speeds[definition.id] = record.value
+		}
+		this.#instance.zoomSpeedsUpdated?.(speeds)
 	}
 
 	async movePanTilt(
@@ -195,8 +211,13 @@ export class CameraWebApi {
 	async #connect(): Promise<void> {
 		await this.#login()
 		await this.#discoverTracking()
-		await this.refreshTracking()
+		await this.#refreshWebState()
 		this.#scheduleTrackingPoll()
+	}
+
+	async #refreshWebState(): Promise<void> {
+		await this.refreshTracking()
+		await this.refreshZoomSpeeds()
 	}
 
 	async #discoverTracking(): Promise<void> {
@@ -232,8 +253,8 @@ export class CameraWebApi {
 		if (this.#trackingPollTimer !== undefined) clearTimeout(this.#trackingPollTimer)
 		this.#trackingPollTimer = setTimeout(() => {
 			this.#trackingPollTimer = undefined
-			void this.refreshTracking()
-				.catch((reason) => this.#instance.log('warn', `Unable to refresh tracking state: ${String(reason)}`))
+			void this.#refreshWebState()
+				.catch((reason) => this.#instance.log('warn', `Unable to refresh camera web state: ${String(reason)}`))
 				.finally(() => this.#scheduleTrackingPoll())
 		}, 10_000)
 		this.#trackingPollTimer.unref()

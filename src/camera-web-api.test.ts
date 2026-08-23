@@ -34,7 +34,7 @@ describe('AVKANS camera web API preset speeds', () => {
 			fetcher,
 		)
 
-		expect(fetcher).toHaveBeenCalledTimes(4)
+		expect(fetcher).toHaveBeenCalledTimes(5)
 		expect(fetcher).toHaveBeenNthCalledWith(
 			1,
 			'http://10.201.0.50/api/auth/login',
@@ -58,6 +58,14 @@ describe('AVKANS camera web API preset speeds', () => {
 				}),
 			)
 		}
+		expect(fetcher).toHaveBeenNthCalledWith(
+			5,
+			'http://10.201.0.50/api/pt/get',
+			expect.objectContaining({
+				method: 'POST',
+				body: JSON.stringify({ keys: ['zoom_speed', 'preset_z_speed'] }),
+			}),
+		)
 	})
 
 	test('reports a rejected camera login without attempting writes', async () => {
@@ -247,5 +255,36 @@ describe('AVKANS tracking controls', () => {
 			autoZoomEnableChk: '0',
 			trackSpeed: '5',
 		})
+	})
+})
+
+describe('AVKANS zoom speed state', () => {
+	test('reads manual and preset zoom speeds together', async () => {
+		const zoomSpeedsUpdated = vi.fn()
+		const fetcher = vi
+			.fn<typeof fetch>()
+			.mockResolvedValueOnce(jsonResponse({ code: 200, data: { token: 'token' } }))
+			.mockResolvedValueOnce(
+				jsonResponse({
+					code: 200,
+					data: [
+						{ key: 'zoom_speed', value: 5 },
+						{ key: 'preset_z_speed', value: 6 },
+					],
+				}),
+			)
+		const api = new CameraWebApi(
+			'10.201.0.50',
+			{ username: 'admin', password: 'secret' },
+			{ log: vi.fn(), updateStatus: vi.fn(), zoomSpeedsUpdated },
+			fetcher,
+		)
+
+		await api.refreshZoomSpeeds()
+		expect(fetcher).toHaveBeenLastCalledWith(
+			'http://10.201.0.50/api/pt/get',
+			expect.objectContaining({ body: JSON.stringify({ keys: ['zoom_speed', 'preset_z_speed'] }) }),
+		)
+		expect(zoomSpeedsUpdated).toHaveBeenCalledWith({ zoom_speed: 5, preset_zoom_speed: 6 })
 	})
 })

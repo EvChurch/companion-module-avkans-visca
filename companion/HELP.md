@@ -60,6 +60,8 @@ After web authentication, the module reads the tracking capabilities reported by
 
 Tracking state refreshes automatically every 10 seconds and immediately after a tracking action. Active-camera variables use `camera_active_tracking_*`; fixed-camera variables use `camera_1_tracking_*` through `camera_4_tracking_*`. Each setting also has a matching **Camera: Tracking … is** feedback with the same camera selector and valid values reported by the camera.
 
+Manual zoom speed and preset-recall zoom speed are also read through the camera web API every 10 seconds. Use `camera_active_zoom_speed` and `camera_active_preset_zoom_speed` for the active camera, or `camera_1_zoom_speed` / `camera_1_preset_zoom_speed` through camera 4 for fixed-camera values. Matching **Camera: Zoom speed is** and **Camera: Preset zoom speed is** feedbacks accept values from 1 through 8.
+
 The camera's interactive video overlays are intentionally not reproduced as button actions: drawing podium, shield, pre-position, or blocked regions and clicking a subject to specify a tracker require video coordinates. Configure those regions in the LV20N web interface; their related operating settings remain available in Companion.
 
 ## Camera state, variables, and feedbacks
