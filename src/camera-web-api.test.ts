@@ -287,4 +287,47 @@ describe('AVKANS zoom speed state', () => {
 		)
 		expect(zoomSpeedsUpdated).toHaveBeenCalledWith({ zoom_speed: 5, preset_zoom_speed: 6 })
 	})
+
+	test('sets manual zoom speed and immediately refreshes speed state', async () => {
+		const zoomSpeedsUpdated = vi.fn()
+		const fetcher = vi
+			.fn<typeof fetch>()
+			.mockResolvedValueOnce(jsonResponse({ code: 200, data: { token: 'token' } }))
+			.mockResolvedValueOnce(jsonResponse({ code: 200, data: [] }))
+			.mockResolvedValueOnce(
+				jsonResponse({
+					code: 200,
+					data: [
+						{ key: 'zoom_speed', value: 8 },
+						{ key: 'preset_z_speed', value: 6 },
+					],
+				}),
+			)
+		const api = new CameraWebApi(
+			'10.201.0.50',
+			{ username: 'admin', password: 'secret' },
+			{ log: vi.fn(), updateStatus: vi.fn(), zoomSpeedsUpdated },
+			fetcher,
+		)
+
+		await api.setZoomSpeed(8)
+		expect(fetcher).toHaveBeenNthCalledWith(
+			2,
+			'http://10.201.0.50/api/pt/set',
+			expect.objectContaining({ body: JSON.stringify({ key: 'zoom_speed', value: 8 }) }),
+		)
+		expect(zoomSpeedsUpdated).toHaveBeenCalledWith({ zoom_speed: 8, preset_zoom_speed: 6 })
+	})
+
+	test.each([0, 9, 1.5])('rejects invalid manual zoom speed %s', async (speed) => {
+		const fetcher = vi.fn<typeof fetch>()
+		const api = new CameraWebApi(
+			'10.201.0.50',
+			{ username: 'admin', password: 'secret' },
+			{ log: vi.fn(), updateStatus: vi.fn() },
+			fetcher,
+		)
+		await expect(api.setZoomSpeed(speed)).rejects.toThrow('Zoom speed must be between 1 and 8')
+		expect(fetcher).not.toHaveBeenCalled()
+	})
 })

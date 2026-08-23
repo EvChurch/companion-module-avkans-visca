@@ -185,6 +185,10 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig, AvkansLv20nSecr
 		})
 	}
 
+	async setZoomSpeedNative(speed: number): Promise<void> {
+		await this.#runWebAction(async (api) => api.setZoomSpeed(speed))
+	}
+
 	async pointNative(method: 'home' | 'set' | 'clear' | 'recall', id: number): Promise<void> {
 		const { panSpeed, tiltSpeed } = this.panTiltSpeed()
 		await this.#runWebAction(
