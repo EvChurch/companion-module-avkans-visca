@@ -38,6 +38,12 @@ function validateSpeed(name: string, value: number, maximum: number): void {
 	}
 }
 
+function validateManualZoomSpeed(value: number): void {
+	if (!Number.isInteger(value) || value < 1 || value > 8) {
+		throw new RangeError('Zoom speed must be between 1 and 8')
+	}
+}
+
 export class CameraWebApi {
 	readonly #host: string
 	readonly #credentials: CameraWebCredentials
@@ -96,6 +102,12 @@ export class CameraWebApi {
 
 	async setPtValue(key: string, value: number): Promise<void> {
 		await this.#request('POST', '/pt/set', { key, value })
+	}
+
+	async setZoomSpeed(speed: number): Promise<void> {
+		validateManualZoomSpeed(speed)
+		await this.setPtValue('zoom_speed', speed)
+		await this.refreshZoomSpeeds()
 	}
 
 	async getPtValue(key: string): Promise<number> {

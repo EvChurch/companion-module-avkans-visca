@@ -62,6 +62,8 @@ Tracking state refreshes automatically every 10 seconds and immediately after a 
 
 Manual zoom speed and preset-recall zoom speed are also read through the camera web API every 10 seconds. Use `camera_active_zoom_speed` and `camera_active_preset_zoom_speed` for the active camera, or `camera_1_zoom_speed` / `camera_1_preset_zoom_speed` through camera 4 for fixed-camera values. Matching **Camera: Zoom speed is** and **Camera: Preset zoom speed is** feedbacks accept values from 1 through 8.
 
+Use **Set Zoom Speed** to change the selected camera's manual zoom speed from **Speed 1 (Slow)** through **Speed 8 (Fast)**. The updated value is read back immediately, so its variable and feedback do not wait for the next polling cycle.
+
 The camera's interactive video overlays are intentionally not reproduced as button actions: drawing podium, shield, pre-position, or blocked regions and clicking a subject to specify a tracker require video coordinates. Configure those regions in the LV20N web interface; their related operating settings remain available in Companion.
 
 ## Camera state, variables, and feedbacks
