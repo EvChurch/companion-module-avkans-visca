@@ -8,6 +8,7 @@ import {
 } from './feedbacks.js'
 import { cameraRoster, noCameraConfig } from './config.js'
 import type { AvkansLv20nInstance } from './instance.js'
+import { zoomSpeedFeedbackId } from './zoom-speed-state.js'
 
 function feedbackEvent(feedbackId: string, options: Record<string, string | number>) {
 	return { type: 'value' as const, id: 'test', controlId: 'test', feedbackId, options }
@@ -87,4 +88,31 @@ test('provides direct per-camera tracking feedbacks', async () => {
 	).toBe(true)
 	await feedback.subscribe?.(feedbackEvent(id, { camera: 2, expected: 1 }), {} as never)
 	expect(refreshTracking).toHaveBeenCalledWith(2)
+})
+
+test('provides direct per-camera manual and preset zoom speed feedbacks', async () => {
+	const refreshZoomSpeeds = vi.fn()
+	const instance = {
+		zoomSpeedValue: vi.fn((id: string, target: string | number) =>
+			id === 'preset_zoom_speed' && target === 2 ? 6 : 5,
+		),
+		refreshZoomSpeeds,
+		isCameraActive: vi.fn(),
+		cameraIsConnected: vi.fn(),
+		cameraStateValue: vi.fn(),
+		refreshCameraState: vi.fn(),
+	} as unknown as AvkansLv20nInstance
+	const config = noCameraConfig()
+	config.cameras[2] = { name: 'Tight', host: '10.0.0.2', username: 'admin' }
+	const feedbacks = getLv20nFeedbacks(instance, cameraRoster(config))
+	const id = zoomSpeedFeedbackId('preset_zoom_speed')
+	const feedback = feedbacks[id]
+	if (!feedback || feedback.type !== 'boolean') throw new Error('missing preset zoom speed feedback')
+
+	expect(feedback.name).toBe('Camera: Preset zoom speed is')
+	expect(
+		await feedback.callback({ ...feedbackEvent(id, { camera: 2, expected: 6 }), type: 'boolean' }, {} as never),
+	).toBe(true)
+	await feedback.subscribe?.(feedbackEvent(id, { camera: 2, expected: 6 }), {} as never)
+	expect(refreshZoomSpeeds).toHaveBeenCalledWith(2)
 })

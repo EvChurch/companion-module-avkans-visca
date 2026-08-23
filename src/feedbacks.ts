@@ -4,6 +4,7 @@ import { cameraStateValueDefinitions } from './camera-state-values.js'
 import type { CameraTarget, ConfiguredCamera } from './config.js'
 import type { AvkansLv20nInstance } from './instance.js'
 import type { TrackingField } from './tracking.js'
+import { ZoomSpeedDefinitions, zoomSpeedFeedbackId } from './zoom-speed-state.js'
 
 export const ActiveCameraFeedbackId = 'camera_active'
 export const CameraConnectionFeedbackId = 'camera_connected'
@@ -59,6 +60,30 @@ export function getLv20nFeedbacks(
 			options: [cameraOption],
 			callback: ({ options }) => instance.cameraIsConnected(target(options)),
 		},
+	}
+
+	for (const definition of ZoomSpeedDefinitions) {
+		const id = zoomSpeedFeedbackId(definition.id)
+		feedbacks[id] = {
+			type: 'boolean',
+			name: `Camera: ${definition.label} is`,
+			description: `True when “${definition.label}” on the selected camera matches the chosen value.`,
+			defaultStyle: { color: combineRgb(255, 255, 255), bgcolor: combineRgb(0, 153, 0) },
+			options: [
+				cameraOption,
+				{
+					type: 'number',
+					id: 'expected',
+					label: definition.label,
+					default: definition.min,
+					min: definition.min,
+					max: definition.max,
+					step: 1,
+				},
+			],
+			callback: ({ options }) => instance.zoomSpeedValue(definition.id, target(options)) === Number(options.expected),
+			subscribe: async ({ options }) => instance.refreshZoomSpeeds(target(options)),
+		}
 	}
 
 	for (const definition of enumStateDefinitions) {

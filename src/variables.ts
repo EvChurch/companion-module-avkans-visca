@@ -3,6 +3,7 @@ import { cameraStateValueDefinitions } from './camera-state-values.js'
 import { CameraSlots, type CameraSlot } from './config.js'
 import type { TrackingField } from './tracking.js'
 import { trackingVariableId } from './tracking.js'
+import { ZoomSpeedDefinitions } from './zoom-speed-state.js'
 
 export function activeCameraVariableId(id: string): string {
 	return `camera_active_${id}`
@@ -39,6 +40,10 @@ export function getLv20nVariableDefinitions(
 			variableId: activeCameraVariableId(trackingVariableId(field)),
 			name: `Active camera: Tracking ${field.label}`,
 		})),
+		...ZoomSpeedDefinitions.map((definition) => ({
+			variableId: activeCameraVariableId(definition.id),
+			name: `Active camera: ${definition.label}`,
+		})),
 	]
 
 	for (const slot of CameraSlots) {
@@ -48,6 +53,12 @@ export function getLv20nVariableDefinitions(
 			{ variableId: cameraVariableId(slot, 'ip'), name: `${prefix}: IP address` },
 			{ variableId: cameraVariableId(slot, 'status'), name: `${prefix}: Connection status` },
 			{ variableId: cameraVariableId(slot, 'active'), name: `${prefix}: Active` },
+		)
+		definitions.push(
+			...ZoomSpeedDefinitions.map((definition) => ({
+				variableId: cameraVariableId(slot, definition.id),
+				name: `${prefix}: ${definition.label}`,
+			})),
 		)
 		definitions.push(
 			...trackingFields.map((field) => ({

@@ -41,6 +41,12 @@ import {
 import { lv20nInquiryCatalog } from './camera/lv20n-inquiry-catalog.js'
 import { CameraWebApi, type PresetRecallSpeeds } from './camera-web-api.js'
 import { mergeTrackingFields, trackingVariableId, type TrackingField, type TrackingValue } from './tracking.js'
+import {
+	ZoomSpeedDefinitions,
+	zoomSpeedFeedbackId,
+	type ZoomSpeedId,
+	type ZoomSpeedValues,
+} from './zoom-speed-state.js'
 
 export class AvkansLv20nInstance extends InstanceBase<RawConfig, AvkansLv20nSecrets> {
 	/** Configuration dictating the behavior of this instance. */
@@ -59,6 +65,7 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig, AvkansLv20nSecr
 	readonly #webApis = new Map<CameraSlot, { signature: string; api: CameraWebApi }>()
 	readonly #trackingFieldsByCamera = new Map<CameraSlot, readonly TrackingField[]>()
 	readonly #trackingValues = new Map<CameraSlot, Readonly<Record<string, TrackingValue>>>()
+	readonly #zoomSpeeds = new Map<CameraSlot, ZoomSpeedValues>()
 	#trackingFields: TrackingField[] = []
 	readonly #cameraState = new CameraState()
 	readonly #stateRefreshQueues = new Map<CameraSlot, Promise<void>>()
@@ -148,6 +155,21 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig, AvkansLv20nSecr
 		}
 	}
 
+	zoomSpeedValue(id: ZoomSpeedId, target: CameraTarget = 'active'): number | undefined {
+		const slot = this.resolveCameraTarget(target)
+		return slot === undefined ? undefined : this.#zoomSpeeds.get(slot)?.[id]
+	}
+
+	async refreshZoomSpeeds(target: CameraTarget): Promise<void> {
+		const slot = this.resolveCameraTarget(target)
+		if (slot === undefined) return
+		try {
+			await this.#webApi(slot).refreshZoomSpeeds()
+		} catch (reason) {
+			this.log('warn', `Unable to refresh zoom speeds for camera ${slot}: ${String(reason)}`)
+		}
+	}
+
 	async movePanTiltNative(pan: -1 | 0 | 1, tilt: -1 | 0 | 1, panSpeed: number, tiltSpeed: number): Promise<void> {
 		await this.#runWebAction(async (api) => api.movePanTilt(pan, tilt, panSpeed, tiltSpeed))
 	}
@@ -232,6 +254,7 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig, AvkansLv20nSecr
 			CameraConnectionFeedbackId,
 			...CameraStateFeedbackIds,
 			...this.#trackingFields.map(({ id }) => trackingFeedbackId(id)),
+			...ZoomSpeedDefinitions.map(({ id }) => zoomSpeedFeedbackId(id)),
 		)
 	}
 
@@ -416,6 +439,7 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig, AvkansLv20nSecr
 		this.#webApis.clear()
 		this.#trackingFieldsByCamera.clear()
 		this.#trackingValues.clear()
+		this.#zoomSpeeds.clear()
 	}
 
 	override async init(config: RawConfig, _isFirstInit: boolean, secrets: AvkansLv20nSecrets): Promise<void> {
@@ -452,6 +476,7 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig, AvkansLv20nSecr
 				this.#webApis.delete(slot)
 				this.#trackingFieldsByCamera.delete(slot)
 				this.#trackingValues.delete(slot)
+				this.#zoomSpeeds.delete(slot)
 			}
 		}
 		for (const camera of roster) {
@@ -462,6 +487,7 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig, AvkansLv20nSecr
 			existing?.api.close()
 			this.#trackingFieldsByCamera.delete(camera.slot)
 			this.#trackingValues.delete(camera.slot)
+			this.#zoomSpeeds.delete(camera.slot)
 			const api = new CameraWebApi(
 				camera.host,
 				{ username: camera.username, password },
@@ -470,6 +496,7 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig, AvkansLv20nSecr
 					updateStatus: (status) => this.#cameras.setWebStatus(camera.slot, status),
 					trackingSchemaUpdated: (fields) => this.#updateTrackingSchema(camera.slot, fields),
 					trackingValuesUpdated: (values) => this.#updateTrackingValues(camera.slot, values),
+					zoomSpeedsUpdated: (values) => this.#updateZoomSpeeds(camera.slot, values),
 				},
 			)
 			this.#webApis.set(camera.slot, { signature, api })
@@ -499,6 +526,12 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig, AvkansLv20nSecr
 		this.checkFeedbacks(...this.#trackingFields.map(({ id }) => trackingFeedbackId(id)))
 	}
 
+	#updateZoomSpeeds(slot: CameraSlot, values: ZoomSpeedValues): void {
+		this.#zoomSpeeds.set(slot, values)
+		this.#refreshCameraVariables()
+		this.checkFeedbacks(...ZoomSpeedDefinitions.map(({ id }) => zoomSpeedFeedbackId(id)))
+	}
+
 	#refreshCameraVariables(): void {
 		const active = this.#cameras.activeSlot
 		const values: Record<string, string | number | boolean> = this.#cameraState.activeVariables(active)
@@ -512,6 +545,9 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig, AvkansLv20nSecr
 			for (const field of this.#trackingFields) {
 				values[cameraVariableId(slot, trackingVariableId(field))] = this.#trackingValues.get(slot)?.[field.id] ?? ''
 			}
+			for (const definition of ZoomSpeedDefinitions) {
+				values[cameraVariableId(slot, definition.id)] = this.#zoomSpeeds.get(slot)?.[definition.id] ?? ''
+			}
 		}
 		values.camera_active_slot = active ?? ''
 		values.camera_active_name = active === undefined ? '' : (this.#cameras.name(active) ?? '')
@@ -520,6 +556,10 @@ export class AvkansLv20nInstance extends InstanceBase<RawConfig, AvkansLv20nSecr
 		for (const field of this.#trackingFields) {
 			values[activeCameraVariableId(trackingVariableId(field))] =
 				active === undefined ? '' : (this.#trackingValues.get(active)?.[field.id] ?? '')
+		}
+		for (const definition of ZoomSpeedDefinitions) {
+			values[activeCameraVariableId(definition.id)] =
+				active === undefined ? '' : (this.#zoomSpeeds.get(active)?.[definition.id] ?? '')
 		}
 		this.setVariableValues(values)
 	}
