@@ -1,11 +1,5 @@
 type Representable =
-	| undefined
-	| null
-	| boolean
-	| number
-	| string
-	| readonly Representable[]
-	| { readonly [key: string]: Representable }
+	undefined | null | boolean | number | string | readonly Representable[] | { readonly [key: string]: Representable }
 
 /** Generate a debug representation of `val`. */
 export function repr(val: Representable): string {
