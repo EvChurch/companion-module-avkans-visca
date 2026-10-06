@@ -34,3 +34,11 @@ Run `yarn install`, then use:
 - `yarn build` to compile the module
 
 This project was derived from [bitfocus/companion-module-ptzoptics-visca](https://github.com/bitfocus/companion-module-ptzoptics-visca) under the MIT License.
+
+# CI check naming
+
+The `module-ci` check requires every job in the native test matrix to succeed,
+including type checking, lint, unused-code checks, compilation, tests and package
+creation. It fails if the matrix fails, is cancelled or is skipped. Its name does
+not include a Node version, so it can remain a required check as the matrix changes.
+The existing test and Companion package checks remain in place.
