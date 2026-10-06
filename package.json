@@ -35,7 +35,7 @@
 		"node": "^22.11"
 	},
 	"dependencies": {
-		"@companion-module/base": "~1.13.6"
+		"@companion-module/base": "~1.14.0"
 	},
 	"devDependencies": {
 		"@companion-module/tools": "2.8.0",
@@ -52,5 +52,5 @@
 		"typescript-eslint": "~8.71.0",
 		"vitest": "^4.1.5"
 	},
-	"packageManager": "yarn@4.14.1"
+	"packageManager": "yarn@4.18.1"
 }
