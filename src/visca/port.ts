@@ -733,7 +733,7 @@ export class VISCAPort {
 			}
 
 			let i = 1
-			let terminatorOffset = -1
+			let terminatorOffset: number
 			for (;;) {
 				// VISCA return messages terminate with 0xFF.
 				terminatorOffset = receivedData.indexOf(0xff, i)

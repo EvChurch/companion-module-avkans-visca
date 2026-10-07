@@ -581,7 +581,7 @@ async function verifyInteractions(
 		if (e instanceof Error) {
 			throw e
 		} else {
-			throw new Error(`Interactions threw error: ${e}`)
+			throw new Error(`Interactions threw error: ${e}`, { cause: e })
 		}
 	} finally {
 		LOG('interaction testing finished')
